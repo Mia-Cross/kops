@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	scw "k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"net"
 	"net/url"
 	"os"
@@ -30,7 +31,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/blang/semver/v4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	kopsbase "k8s.io/kops"
@@ -76,6 +76,8 @@ import (
 	"k8s.io/kops/util/pkg/mirrors"
 	"k8s.io/kops/util/pkg/reflectutils"
 	"k8s.io/kops/util/pkg/vfs"
+
+	"github.com/blang/semver/v4"
 )
 
 const (
@@ -478,6 +480,21 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 				return fmt.Errorf("exactly one 'admin' SSH public key can be specified when running with Openstack; please delete a key using `kops delete secret`")
 			}
 		}
+
+	case kops.CloudProviderScaleway:
+		{
+			if !featureflag.Scaleway.Enabled() {
+				return fmt.Errorf("Scaleway support is currently alpha, and is feature-gated.  export KOPS_FEATURE_FLAGS=Scaleway")
+			}
+
+			if len(sshPublicKeys) == 0 {
+				return fmt.Errorf("SSH public key must be specified when running with Scaleway (create with `kops create secret --name %s sshpublickey admin -i ~/.ssh/id_rsa.pub`)", cluster.ObjectMeta.Name)
+			}
+
+			if len(sshPublicKeys) != 1 {
+				return fmt.Errorf("exactly one 'admin' SSH public key can be specified when running with Scaleway; please delete a key using `kops delete secret`")
+			}
+		}
 	default:
 		return fmt.Errorf("unknown CloudProvider %q", cluster.Spec.GetCloudProvider())
 	}
@@ -701,6 +718,9 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			target = openstack.NewOpenstackAPITarget(cloud.(openstack.OpenstackCloud))
 		case kops.CloudProviderAzure:
 			target = azure.NewAzureAPITarget(cloud.(azure.AzureCloud))
+		case kops.CloudProviderScaleway:
+			target = scw.NewScwAPITarget(cloud.(scw.ScwCloud))
+
 		default:
 			return fmt.Errorf("direct configuration not supported with CloudProvider:%q", cluster.Spec.GetCloudProvider())
 		}
