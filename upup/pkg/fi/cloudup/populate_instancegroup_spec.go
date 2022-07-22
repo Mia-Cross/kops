@@ -22,7 +22,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/blang/semver/v4"
-	"k8s.io/klog/v2"
 
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/util"
@@ -41,6 +40,7 @@ const (
 	defaultNodeMachineTypeDO      = "s-2vcpu-4gb"
 	defaultNodeMachineTypeAzure   = "Standard_B2ms"
 	defaultNodeMachineTypeHetzner = "cx21"
+	defaultNodeMachineTypeSCW     = "DEV1-M"
 
 	defaultBastionMachineTypeGCE     = "f1-micro"
 	defaultBastionMachineTypeAzure   = "Standard_B2ms"
@@ -50,8 +50,10 @@ const (
 	defaultMasterMachineTypeDO      = "s-2vcpu-4gb"
 	defaultMasterMachineTypeAzure   = "Standard_B2ms"
 	defaultMasterMachineTypeHetzner = "cx21"
+	defaultMasterMachineTypeSCW     = "DEV1-M"
 
-	defaultDONodeImage = "ubuntu-20-04-x64"
+	defaultDONodeImage       = "ubuntu-20-04-x64"
+	defaultScalewayNodeImage = "debian_buster"
 )
 
 // TODO: this hardcoded list can be replaced with DescribeInstanceTypes' DedicatedHostsSupported field
@@ -291,6 +293,15 @@ func defaultMachineType(cloud fi.Cloud, cluster *kops.Cluster, ig *kops.Instance
 		case kops.InstanceGroupRoleBastion:
 			return defaultBastionMachineTypeAzure, nil
 		}
+
+	case kops.CloudProviderScaleway:
+		switch ig.Spec.Role {
+		case kops.InstanceGroupRoleMaster:
+			return defaultMasterMachineTypeSCW, nil
+
+		case kops.InstanceGroupRoleNode:
+			return defaultNodeMachineTypeSCW, nil
+		}
 	}
 
 	klog.V(2).Infof("Cannot set default MachineType for CloudProvider=%q, Role=%q", cluster.Spec.GetCloudProvider(), ig.Spec.Role)
@@ -319,7 +330,10 @@ func defaultImage(cluster *kops.Cluster, channel *kops.Channel, architecture arc
 	switch cluster.Spec.GetCloudProvider() {
 	case kops.CloudProviderDO:
 		return defaultDONodeImage
+	case kops.CloudProviderScaleway:
+		return defaultScalewayNodeImage
 	}
+
 	klog.Infof("Cannot set default Image for CloudProvider=%q", cluster.Spec.GetCloudProvider())
 	return ""
 }
