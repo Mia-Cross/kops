@@ -26,17 +26,18 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	kopsbase "k8s.io/kops"
 	"k8s.io/kops/cmd/kops/util"
@@ -731,6 +732,17 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 				// Don't wrap file-not-found
 				if os.IsNotExist(err) {
 					klog.V(2).Infof("ssh key not found at %s", sshPublicKeyPath)
+					// Try to look for ed25519 type key
+					sshPublicKeyPath = "~/.ssh/id_ed25519.pub"
+					c.SSHPublicKeys, err = loadSSHPublicKeys(sshPublicKeyPath)
+					if err != nil {
+						// Don't wrap file-not-found
+						if os.IsNotExist(err) {
+							klog.V(2).Infof("ssh key not found at %s", sshPublicKeyPath)
+						} else {
+							return fmt.Errorf("error reading SSH key file %q: %v", sshPublicKeyPath, err)
+						}
+					}
 				} else {
 					return fmt.Errorf("error reading SSH key file %q: %v", sshPublicKeyPath, err)
 				}

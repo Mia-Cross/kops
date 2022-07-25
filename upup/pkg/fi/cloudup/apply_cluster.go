@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	scw "k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"net"
 	"net/url"
 	"os"
@@ -57,6 +56,7 @@ import (
 	"k8s.io/kops/pkg/model/hetznermodel"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/pkg/model/openstackmodel"
+	"k8s.io/kops/pkg/model/scalewaymodel"
 	"k8s.io/kops/pkg/templates"
 	"k8s.io/kops/pkg/wellknownports"
 	"k8s.io/kops/upup/models"
@@ -69,6 +69,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/cloudup/hetzner"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraformWriter"
 	"k8s.io/kops/util/pkg/architectures"
@@ -690,6 +691,15 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 				&openstackmodel.FirewallModelBuilder{OpenstackModelContext: openstackModelContext, Lifecycle: securityLifecycle},
 				&openstackmodel.ServerGroupModelBuilder{OpenstackModelContext: openstackModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
 			)
+		case kops.CloudProviderScaleway:
+			scwModelContext := &scalewaymodel.ScwModelContext{
+				KopsModelContext: modelContext,
+			}
+			l.Builders = append(l.Builders,
+				&scalewaymodel.APILoadBalancerModelBuilder{ScwModelContext: scwModelContext, Lifecycle: securityLifecycle},
+				&scalewaymodel.InstanceModelBuilder{ScwModelContext: scwModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
+				&scalewaymodel.SSHKeyModelBuilder{ScwModelContext: scwModelContext, Lifecycle: networkLifecycle},
+			)
 
 		default:
 			return fmt.Errorf("unknown cloudprovider %q", cluster.Spec.GetCloudProvider())
@@ -719,7 +729,7 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 		case kops.CloudProviderAzure:
 			target = azure.NewAzureAPITarget(cloud.(azure.AzureCloud))
 		case kops.CloudProviderScaleway:
-			target = scw.NewScwAPITarget(cloud.(scw.ScwCloud))
+			target = scaleway.NewScwAPITarget(cloud.(scaleway.ScwCloud))
 
 		default:
 			return fmt.Errorf("direct configuration not supported with CloudProvider:%q", cluster.Spec.GetCloudProvider())
