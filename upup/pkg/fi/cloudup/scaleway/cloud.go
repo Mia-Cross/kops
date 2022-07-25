@@ -12,6 +12,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi"
 
 	account "github.com/scaleway/scaleway-sdk-go/api/account/v2alpha1"
+	domain "github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/lb/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
@@ -31,9 +32,10 @@ type ScwCloud interface {
 	GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error)
 	FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error)
 
-	Account() *account.API
-	Instance() *instance.API
-	LB() *lb.API
+	AccountService() *account.API
+	InstanceService() *instance.API
+	LBService() *lb.API
+	DomainService() *domain.API
 }
 
 // static compile time check to validate ScwCloud's fi.Cloud Interface.
@@ -49,6 +51,7 @@ type scwCloudImplementation struct {
 	accountAPI  *account.API
 	instanceAPI *instance.API
 	lbAPI       *lb.API
+	domainAPI   *domain.API
 }
 
 // NewScwCloud returns a Cloud, using the env vars SCW_ACCESS_KEY and SCW_SECRET_KEY
@@ -99,19 +102,24 @@ func NewScwCloud(region string, tags map[string]string) (ScwCloud, error) {
 		accountAPI:  account.NewAPI(scwClient),
 		instanceAPI: instance.NewAPI(scwClient),
 		lbAPI:       lb.NewAPI(scwClient),
+		domainAPI:   domain.NewAPI(scwClient),
 	}, nil
 }
 
-func (s *scwCloudImplementation) Account() *account.API {
+func (s *scwCloudImplementation) AccountService() *account.API {
 	return s.accountAPI
 }
 
-func (s *scwCloudImplementation) Instance() *instance.API {
+func (s *scwCloudImplementation) InstanceService() *instance.API {
 	return s.instanceAPI
 }
 
-func (s *scwCloudImplementation) LB() *lb.API {
+func (s *scwCloudImplementation) LBService() *lb.API {
 	return s.lbAPI
+}
+
+func (s *scwCloudImplementation) DomainService() *domain.API {
+	return s.domainAPI
 }
 
 func (s *scwCloudImplementation) ProviderID() kops.CloudProviderID {
