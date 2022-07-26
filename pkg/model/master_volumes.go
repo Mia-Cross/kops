@@ -115,6 +115,8 @@ func (b *MasterVolumeBuilder) Build(c *fi.ModelBuilderContext) error {
 				}
 			case kops.CloudProviderAzure:
 				b.addAzureVolume(c, name, volumeSize, zone, etcd, m, allMembers)
+			case kops.CloudProviderScaleway:
+				b.addScalewayVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 			default:
 				return fmt.Errorf("unknown cloudprovider %q", b.Cluster.Spec.GetCloudProvider())
 			}
@@ -377,4 +379,9 @@ func (b *MasterVolumeBuilder) addAzureVolume(
 		Tags:   tags,
 	}
 	c.AddTask(t)
+}
+
+func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
+	// TODO: implement this function
+
 }

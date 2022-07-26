@@ -19,6 +19,7 @@ package etcdmanager
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -439,6 +440,16 @@ func (b *EtcdManagerBuilder) buildPod(etcdCluster kops.EtcdClusterSpec, instance
 				fmt.Sprintf("%s=%s", openstack.TagClusterName, b.Cluster.Name),
 			}
 			config.VolumeNameTag = openstack.TagNameEtcdClusterPrefix + etcdCluster.Name
+
+		case kops.CloudProviderScaleway:
+			config.VolumeProvider = "scaleway"
+
+			config.VolumeTag = []string{
+				fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.Name),
+				scaleway.TagNameEtcdClusterPrefix + etcdCluster.Name,
+				scaleway.TagNameRolePrefix + "master=1",
+			}
+			config.VolumeNameTag = scaleway.TagNameEtcdClusterPrefix + etcdCluster.Name
 
 		default:
 			return nil, fmt.Errorf("CloudProvider %q not supported with etcd-manager", b.Cluster.Spec.GetCloudProvider())

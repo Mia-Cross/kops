@@ -26,12 +26,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/upup/pkg/fi/utils"
-	"sigs.k8s.io/yaml"
-
-	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/model/resources"
@@ -40,6 +38,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/fitasks"
 	"k8s.io/kops/util/pkg/architectures"
 	"k8s.io/kops/util/pkg/mirrors"
+	"sigs.k8s.io/yaml"
 )
 
 type NodeUpConfigBuilder interface {
