@@ -52,7 +52,7 @@ const (
 	defaultMasterMachineTypeHetzner = "cx21"
 	defaultMasterMachineTypeSCW     = "DEV1-M"
 
-	defaultDONodeImage       = "ubuntu-20-04-x64"
+	defaultDONodeImage  = "ubuntu-20-04-x64"
 	defaultSCWNodeImage = "debian_buster"
 )
 

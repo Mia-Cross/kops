@@ -7,6 +7,7 @@ import (
 	"golang.org/x/oauth2"
 	"io"
 	"k8s.io/klog/v2"
+	kopsv "k8s.io/kops"
 	"k8s.io/kops/dns-controller/pkg/dns"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
@@ -29,7 +30,7 @@ func init() {
 			return nil, err
 		}
 
-		return NewProvider(client, ""), nil //TODO: remplir le nom de domaine
+		return NewProvider(client, ""), nil //TODO: replace with domain name when we have one
 	})
 }
 
@@ -47,21 +48,25 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 }
 
 func newClient() (*scw.Client, error) {
-	accessToken := os.Getenv("SCW_ACCESS_TOKEN")
+	accessToken := os.Getenv("SCW_ACCESS_KEY")
 	if accessToken == "" {
-		return nil, errors.New("SCW_ACCESS_TOKEN is required")
+		return nil, errors.New("SCW_ACCESS_KEY is required")
 	}
-
 	tokenSource := &TokenSource{
 		AccessToken: accessToken,
 	}
-
 	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
 
-	scwClient, err := scw.NewClient(scw.WithHTTPClient(oauthClient))
+	// TODO: check if it's necessary to have both the oauth token & the scw env
+	scwClient, err := scw.NewClient(
+		scw.WithHTTPClient(oauthClient),
+		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
+		scw.WithEnv(),
+	)
 	if err != nil {
 		return nil, err
 	}
+
 	return scwClient, nil
 }
 
