@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"os"
 	"sort"
 	"strconv"
@@ -210,6 +211,31 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 		azureEnv := os.Getenv("AZURE_ENVIRONMENT")
 		if azureEnv != "" {
 			env["AZURE_ENVIRONMENT"] = os.Getenv("AZURE_ENVIRONMENT")
+		}
+	}
+
+	// TODO: find out where this part is used
+	if cluster.Spec.GetCloudProvider() == kops.CloudProviderScaleway {
+		region, err := scaleway.FindRegion(cluster)
+		if err != nil {
+			return nil, err
+		}
+		if region == "" {
+			klog.Warningf("unable to determine cluster region")
+		} else {
+			env["SCW_DEFAULT_REGION"] = region
+		}
+		scwAccessKey := os.Getenv("SCW_ACCESS_KEY")
+		if scwAccessKey != "" {
+			env["SCW_ACCESS_KEY"] = scwAccessKey
+		}
+		scwSecretKey := os.Getenv("SCW_SECRET_KEY")
+		if scwSecretKey != "" {
+			env["SCW_SECRET_KEY"] = scwSecretKey
+		}
+		scwProjectID := os.Getenv("SCW_DEFAULT_PROJECT_ID")
+		if scwProjectID != "" {
+			env["SCW_DEFAULT_PROJECT_ID"] = scwProjectID
 		}
 	}
 

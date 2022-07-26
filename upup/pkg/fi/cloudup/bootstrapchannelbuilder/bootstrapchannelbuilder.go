@@ -106,6 +106,10 @@ func (b *BootstrapChannelBuilder) Build(c *fi.ModelBuilderContext) error {
 	}
 
 	for _, a := range addons.Items {
+		if *a.Spec.Name == "dns-controller.addons.k8s.io" {
+			continue
+		}
+
 		// Older versions of channels that may be running on the upgrading cluster requires Version to be set
 		// We hardcode version to a high version to ensure an update is triggered on first run, and from then on
 		// only a hash change will trigger an addon update.
