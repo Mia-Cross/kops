@@ -23,6 +23,8 @@ const (
 	TagNameRolePrefix        = "k8s.io/role/"
 	TagClusterName           = "KubernetesCluster"
 	TagRoleMaster            = "master"
+	TagInstanceGroup         = "instance-group"
+	TagRoleVolume            = "volume"
 
 	KopsDomainName = "scaleway-terraform.com" // TODO: replace with real domain name
 )

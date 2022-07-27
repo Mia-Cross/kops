@@ -38,6 +38,8 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/hetznertasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstacktasks"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scalewaytasks"
 )
 
 const (
@@ -382,6 +384,21 @@ func (b *MasterVolumeBuilder) addAzureVolume(
 }
 
 func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
-	// TODO: implement this function
+	// QUESTION : implement a SafeClusterName fct like DO and GCE ??
 
+	tags := make(map[string]string)
+	tags[scaleway.TagClusterName] = b.Cluster.ObjectMeta.Name
+	tags[scaleway.TagInstanceGroup] = fi.StringValue(m.InstanceGroup)
+	tags[scaleway.TagRoleVolume] = etcd.Name
+
+	t := &scalewaytasks.Volume{
+		Name:      fi.String(name),
+		Lifecycle: b.Lifecycle,
+		SizeGB:    int(volumeSize),
+		Zone:      &zone,
+		Tags:      tags,
+	}
+	c.AddTask(t)
+
+	return
 }

@@ -19,7 +19,6 @@ package etcdmanager
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -41,6 +40,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/cloudup/hetzner"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/fitasks"
 	"k8s.io/kops/util/pkg/env"
 	"k8s.io/kops/util/pkg/exec"
