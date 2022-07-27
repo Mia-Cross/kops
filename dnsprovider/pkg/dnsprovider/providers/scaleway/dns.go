@@ -20,7 +20,8 @@ import (
 var _ dnsprovider.Interface = Interface{}
 
 const (
-	ProviderName = "scaleway"
+	ProviderName   = "scaleway"
+	KopsDomainName = "scaleway-terraform.com" // TODO: replace with real domain name
 )
 
 func init() {
@@ -30,7 +31,7 @@ func init() {
 			return nil, err
 		}
 
-		return NewProvider(client, ""), nil //TODO: replace with domain name when we have one
+		return NewProvider(client, KopsDomainName), nil
 	})
 }
 

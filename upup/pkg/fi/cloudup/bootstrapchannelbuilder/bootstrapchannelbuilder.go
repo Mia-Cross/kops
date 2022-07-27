@@ -106,10 +106,6 @@ func (b *BootstrapChannelBuilder) Build(c *fi.ModelBuilderContext) error {
 	}
 
 	for _, a := range addons.Items {
-		if *a.Spec.Name == "dns-controller.addons.k8s.io" {
-			continue
-		}
-
 		// Older versions of channels that may be running on the upgrading cluster requires Version to be set
 		// We hardcode version to a high version to ensure an update is triggered on first run, and from then on
 		// only a hash change will trigger an addon update.
@@ -824,6 +820,33 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 					Id:       id,
 				})
 			}
+		}
+	}
+
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderScaleway {
+		{
+			key := "scaleway-cloud-controller.addons.k8s.io"
+			id := "k8s-1.24"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		}
+		{
+			key := "scaleway-csi-driver.addons.k8s.io"
+			id := "k8s-1.24"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
 		}
 	}
 
