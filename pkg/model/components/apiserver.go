@@ -111,7 +111,9 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 	case kops.CloudProviderAzure:
 		c.CloudProvider = "azure"
 	case kops.CloudProviderScaleway:
+		// TODO: choose between these two
 		c.CloudProvider = "scaleway"
+		//c.CloudProvider = "external"
 	default:
 		return fmt.Errorf("unknown cloudprovider %q", clusterSpec.GetCloudProvider())
 	}

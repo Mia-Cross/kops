@@ -23,6 +23,8 @@ const (
 	TagNameRolePrefix        = "k8s.io/role/"
 	TagClusterName           = "KubernetesCluster"
 	TagRoleMaster            = "master"
+
+	KopsDomainName = "scaleway-terraform.com" // TODO: replace with real domain name
 )
 
 // ScwCloud exposes all the interfaces required to operate on Scaleway resources
@@ -96,7 +98,7 @@ func NewScwCloud(region string, tags map[string]string) (ScwCloud, error) {
 
 	return &scwCloudImplementation{
 		client:      scwClient,
-		dns:         dns.NewProvider(scwClient, ""), //TODO: fill in domain name
+		dns:         dns.NewProvider(scwClient, KopsDomainName),
 		region:      region,
 		tags:        tags,
 		accountAPI:  account.NewAPI(scwClient),
