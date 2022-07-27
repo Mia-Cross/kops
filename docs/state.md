@@ -17,6 +17,7 @@ As of now the following state stores are supported:
 * Google Cloud (`gs://`)
 * Kubernetes (`k8s://`)
 * OpenStack Swift (`swift://`)
+* Scaleway (`scw://`)
 
 The state store is just files; you can copy the files down and put them into git (or your preferred version control system).
 
@@ -178,6 +179,10 @@ if err != nil {
 gcsClient, err := storage.New(httpClient)
 
 ```
+
+## Scaleway (scw://)
+
+Scaleway storage is configured as a flavor of a S3 store.
 
 ## Vault (vault://)
 {{ kops_feature_table(kops_added_ff='1.19') }}
