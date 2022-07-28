@@ -388,13 +388,14 @@ func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name 
 
 	tags := make(map[string]string)
 	tags[scaleway.TagClusterName] = b.Cluster.ObjectMeta.Name
+	tags[scaleway.TagNameEtcdClusterPrefix+etcd.Name] = m.Name
 	tags[scaleway.TagInstanceGroup] = fi.StringValue(m.InstanceGroup)
 	tags[scaleway.TagRoleVolume] = etcd.Name
 
 	t := &scalewaytasks.Volume{
 		Name:      fi.String(name),
 		Lifecycle: b.Lifecycle,
-		SizeGB:    int(volumeSize),
+		Size:      fi.Int64(int64(volumeSize) * 1e9),
 		Zone:      &zone,
 		Tags:      tags,
 	}
