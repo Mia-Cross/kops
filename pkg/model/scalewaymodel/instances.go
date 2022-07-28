@@ -3,6 +3,7 @@ package scalewaymodel
 import (
 	"k8s.io/kops/pkg/model"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scalewaytasks"
 )
 
@@ -30,7 +31,7 @@ func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			Zone:           fi.String(d.Cluster.Spec.Subnets[0].Zone),
 			CommercialType: fi.String(ig.Spec.MachineType),
 			Image:          fi.String(ig.Spec.Image),
-			Tags:           []string{"instance-group=" + ig.Name}, //TODO(jtherin): find a better way
+			Tags:           []string{scaleway.TagInstanceGroup + "=" + ig.Name}, //TODO(jtherin): find a better way
 		}
 
 		userData, err := d.BootstrapScriptBuilder.ResourceNodeUp(c, ig)

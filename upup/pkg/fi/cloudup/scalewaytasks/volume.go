@@ -2,11 +2,11 @@ package scalewaytasks
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 
-	"github.com/digitalocean/godo"
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 )
@@ -17,7 +17,7 @@ type Volume struct {
 	ID        *string
 	Lifecycle fi.Lifecycle
 
-	SizeGB int
+	Size *int64
 	//Region *string
 	Zone *string
 	Tags map[string]string
@@ -33,10 +33,11 @@ func (v *Volume) Find(c *fi.Context) (*Volume, error) {
 	cloud := c.Cloud.(scaleway.ScwCloud)
 	instanceService := cloud.InstanceService()
 
-	name := fi.StringValue(v.Name)
+	//zone := os.Getenv("SCW_DEFAULT_ZONE")
+	zone := v.Zone //TODO: is it the same zone ??
 	volumes, err := instanceService.ListVolumes(&instance.ListVolumesRequest{
-		Name: &name,
-		Zone: cloud.Zone,
+		Name: v.Name,
+		Zone: scw.Zone(fi.StringValue(zone)),
 	}, scw.WithAllPages())
 	if err != nil {
 		return nil, err
@@ -48,13 +49,12 @@ func (v *Volume) Find(c *fi.Context) (*Volume, error) {
 				Name:      fi.String(volume.Name),
 				ID:        fi.String(volume.ID),
 				Lifecycle: v.Lifecycle,
-				SizeGB:    fi.Int64(volume.Size), // TODO: convert bytes result to GBytes
-				Region:    fi.String(volume.Region.Slug),
+				Size:      fi.Int64(int64(volume.Size)),
+				Zone:      fi.String(string(volume.Zone)),
 			}, nil
 		}
 	}
 
-	// Volume = nil if not found
 	return nil, nil
 }
 
@@ -70,18 +70,18 @@ func (_ *Volume) CheckChanges(a, e, changes *Volume) error {
 		if changes.ID != nil {
 			return fi.CannotChangeField("ID")
 		}
-		if changes.Region != nil {
-			return fi.CannotChangeField("Region")
+		if changes.Zone != nil {
+			return fi.CannotChangeField("Zone")
 		}
 	} else {
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.SizeGB == nil {
-			return fi.RequiredField("SizeGB")
+		if e.Size == nil {
+			return fi.RequiredField("Size")
 		}
-		if e.Region == nil {
-			return fi.RequiredField("Region")
+		if e.Zone == nil {
+			return fi.RequiredField("Zone")
 		}
 	}
 	return nil
@@ -103,30 +103,31 @@ func (_ *Volume) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Volume) erro
 		tagArray = append(tagArray, fmt.Sprintf("%s:%s", k, v))
 	}
 
-	volService := t.Cloud.VolumeService()
-	_, _, err := volService.CreateVolume(context.TOScw(), &godo.VolumeCreateRequest{
-		Name:          fi.StringValue(e.Name),
-		Region:        fi.StringValue(e.Region),
-		SizeGigaBytes: fi.Int64Value(e.SizeGB),
-		Tags:          tagArray,
+	instanceService := t.Cloud.InstanceService()
+	_, err := instanceService.CreateVolume(&instance.CreateVolumeRequest{
+		Zone: scw.Zone(fi.StringValue(e.Zone)),
+		Name: fi.StringValue(e.Name),
+		Size: scw.SizePtr(scw.Size(fi.Int64Value(e.Size))),
+		Tags: tagArray,
 	})
 
 	return err
 }
 
-// terraformVolume represents the digitalocean_volume resource in terraform
-// https://www.terraform.io/docs/providers/scaleway/r/volume.html
+// terraformVolume represents the scaleway_instance_volume resource in terraform
+// https://registry.terraform.io/providers/scaleway/scaleway/latest/docs/resources/instance_volume
 type terraformVolume struct {
 	Name   *string `cty:"name"`
 	SizeGB *int64  `cty:"size"`
-	Region *string `cty:"region"`
+	Zone   *string `cty:"zone"`
 }
 
 func (_ *Volume) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *Volume) error {
+	sizeGB := fi.Int64Value(e.Size) / 1e9
 	tf := &terraformVolume{
 		Name:   e.Name,
-		SizeGB: e.SizeGB,
-		Region: e.Region,
+		SizeGB: &sizeGB,
+		Zone:   e.Zone,
 	}
-	return t.RenderResource("digitalocean_volume", *e.Name, tf)
+	return t.RenderResource("scaleway_instance_volume", *e.Name, tf)
 }
