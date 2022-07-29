@@ -3,13 +3,12 @@ package scalewaytasks
 import (
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
-	"os"
 
 	"github.com/scaleway/scaleway-sdk-go/api/lb/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 )
 
-// LoadBalancer represents a ALI Cloud LoadBalancer
+// LoadBalancer represents a Scaleway LoadBalancer
 // +kops:fitask
 type LoadBalancer struct {
 	Name                *string
@@ -41,9 +40,8 @@ func (l *LoadBalancer) FindAddresses(context *fi.Context) ([]string, error) {
 	cloud := context.Cloud.(scaleway.ScwCloud)
 	lbService := cloud.LBService()
 
-	region := os.Getenv("SCW_DEFAULT_REGION")
 	lb, err := lbService.GetLB(&lb.GetLBRequest{
-		Region: scw.Region(region),
+		Region: scw.Region(cloud.Region()),
 		LBID:   fi.StringValue(l.LoadBalancerId),
 	})
 	if err != nil {
@@ -65,11 +63,9 @@ func (l *LoadBalancer) FindAddresses(context *fi.Context) ([]string, error) {
 func (l *LoadBalancer) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *LoadBalancer) error {
 	lbService := t.Cloud.LBService()
 
-	region := os.Getenv("SCW_DEFAULT_REGION")
-
 	//if a == nil {
 	lb, err := lbService.CreateLB(&lb.CreateLBRequest{
-		Region: scw.Region(region),
+		Region: scw.Region(t.Cloud.Region()),
 		Name:   fi.StringValue(e.Name),
 		IPID:   nil,
 		//Tags:                  e.Tags,
