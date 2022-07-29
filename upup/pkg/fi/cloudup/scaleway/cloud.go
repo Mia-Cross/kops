@@ -33,13 +33,24 @@ const (
 type ScwCloud interface {
 	fi.Cloud
 
-	GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error)
-	FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error)
+	Region() string
+	Zone() string
+	ProviderID() kops.CloudProviderID
+	DNS() (dnsprovider.Interface, error)
 
 	AccountService() *account.API
 	InstanceService() *instance.API
 	LBService() *lb.API
 	DomainService() *domain.API
+
+	GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error)
+	FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error)
+	GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error)
+	DeleteGroup(group *cloudinstances.CloudInstanceGroup) error
+	FindVPCInfo(id string) (*fi.VPCInfo, error)
+	DetachInstance(instance *cloudinstances.CloudInstance) error
+	DeregisterInstance(instance *cloudinstances.CloudInstance) error
+	DeleteInstance(i *cloudinstances.CloudInstance) error
 }
 
 // static compile time check to validate ScwCloud's fi.Cloud Interface.
@@ -50,6 +61,7 @@ type scwCloudImplementation struct {
 	client *scw.Client
 	dns    dnsprovider.Interface
 	region string
+	zone   string
 	tags   map[string]string
 
 	accountAPI  *account.API
@@ -59,7 +71,7 @@ type scwCloudImplementation struct {
 }
 
 // NewScwCloud returns a Cloud, using the env vars SCW_ACCESS_KEY and SCW_SECRET_KEY
-func NewScwCloud(region string, tags map[string]string) (ScwCloud, error) {
+func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) {
 	// We could either build our client this way :
 
 	//scwAccessKey := os.Getenv("SCW_ACCESS_KEY")
@@ -87,7 +99,8 @@ func NewScwCloud(region string, tags map[string]string) (ScwCloud, error) {
 	// Use these env variables to set or overwrite profile values
 	// SCW_ACCESS_KEY
 	// SCW_SECRET_KEY
-	// SCW_DEFAULT_PROJECT_ID or SCW_DEFAULT_ORGANIZATION_ID
+	// SCW_DEFAULT_PROJECT_ID
+	// SCW_DEFAULT_REGION
 
 	scwClient, err := scw.NewClient(
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
@@ -102,12 +115,33 @@ func NewScwCloud(region string, tags map[string]string) (ScwCloud, error) {
 		client:      scwClient,
 		dns:         dns.NewProvider(scwClient, KopsDomainName),
 		region:      region,
+		zone:        zone,
 		tags:        tags,
 		accountAPI:  account.NewAPI(scwClient),
 		instanceAPI: instance.NewAPI(scwClient),
 		lbAPI:       lb.NewAPI(scwClient),
 		domainAPI:   domain.NewAPI(scwClient),
 	}, nil
+}
+
+func (s *scwCloudImplementation) Region() string {
+	return s.region
+}
+
+func (s *scwCloudImplementation) Zone() string {
+	return s.zone
+}
+
+func (s *scwCloudImplementation) ProviderID() kops.CloudProviderID {
+	return kops.CloudProviderScaleway
+}
+
+func (s *scwCloudImplementation) DNS() (dnsprovider.Interface, error) {
+	provider, err := dnsprovider.GetDnsProvider(dns.ProviderName, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error building DNS provider: %v", err)
+	}
+	return provider, nil
 }
 
 func (s *scwCloudImplementation) AccountService() *account.API {
@@ -124,18 +158,6 @@ func (s *scwCloudImplementation) LBService() *lb.API {
 
 func (s *scwCloudImplementation) DomainService() *domain.API {
 	return s.domainAPI
-}
-
-func (s *scwCloudImplementation) ProviderID() kops.CloudProviderID {
-	return kops.CloudProviderScaleway
-}
-
-func (s *scwCloudImplementation) DNS() (dnsprovider.Interface, error) {
-	provider, err := dnsprovider.GetDnsProvider(dns.ProviderName, nil)
-	if err != nil {
-		return nil, fmt.Errorf("error building DNS provider: %v", err)
-	}
-	return provider, nil
 }
 
 // FindVPCInfo is not implemented yet, it's only here to satisfy the fi.Cloud interface
@@ -160,7 +182,7 @@ func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance)
 		return fmt.Errorf("delete instance %s: error reaching stopped state: %v", id, err)
 	}
 
-	_, err = waitForInstanceServer(s.instanceAPI, zone, id)
+	_, err = WaitForInstanceServer(s.instanceAPI, zone, id)
 	if err != nil {
 		return fmt.Errorf("delete instance %s: error waiting for instance: %v", id, err)
 	}
@@ -173,7 +195,7 @@ func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance)
 		return fmt.Errorf("error deleting instance %s: %v", id, err)
 	}
 
-	_, err = waitForInstanceServer(s.instanceAPI, zone, id)
+	_, err = WaitForInstanceServer(s.instanceAPI, zone, id)
 	if err != nil && !is404Error(err) {
 		return fmt.Errorf("delete instance %s: error waiting for instance: %v", id, err)
 	}
@@ -199,10 +221,6 @@ func (s *scwCloudImplementation) DetachInstance(instance *cloudinstances.CloudIn
 func (s *scwCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error) {
 	//TODO implement me
 	panic("implement me")
-}
-
-func (s *scwCloudImplementation) Region() string {
-	return s.region
 }
 
 func (s *scwCloudImplementation) FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error) {

@@ -75,7 +75,7 @@ func (d *Instance) Run(c *fi.Context) error {
 	return fi.DefaultDeltaRunMethod(d, c)
 }
 
-func (_ *Instance) Render(c *fi.Context, a, e, changes *Instance) error {
+func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	cloud := c.Cloud.(scaleway.ScwCloud)
 
 	userData, err := fi.ResourceAsString(*e.UserData)
@@ -101,17 +101,18 @@ func (_ *Instance) Render(c *fi.Context, a, e, changes *Instance) error {
 		newInstanceCount = expectedCount - actualCount
 	}
 
+	instanceService := cloud.InstanceService()
+
 	for i := 0; i < newInstanceCount; i++ {
-		createSrvArgs := &instance.CreateServerRequest{
+
+		srv, err := instanceService.CreateServer(&instance.CreateServerRequest{
 			Zone:           scw.Zone(fi.StringValue(e.Zone)),
 			Name:           fi.StringValue(e.Name),
 			CommercialType: fi.StringValue(e.CommercialType),
 			Image:          fi.StringValue(e.Image),
 			Tags:           e.Tags,
 			//UserData:       userData,
-		}
-
-		srv, err := cloud.InstanceService().CreateServer(createSrvArgs)
+		})
 		if err != nil {
 			klog.Errorf("Error creating instance with Name=%s", fi.StringValue(e.Name))
 			return err
@@ -129,8 +130,17 @@ func (_ *Instance) Render(c *fi.Context, a, e, changes *Instance) error {
 		//if err != nil {
 		//	return err
 		//}
+
+		_, err = instanceService.ServerAction(&instance.ServerActionRequest{
+			Zone:     scw.Zone(fi.StringValue(e.Zone)),
+			ServerID: srv.Server.ID,
+			Action:   "poweron",
+		})
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 func (_ *Instance) CheckChanges(a, e, changes *Instance) error {

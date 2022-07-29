@@ -17,29 +17,27 @@ const (
 	defaultInstanceWaitTimeout       = 10 * time.Minute
 )
 
-func FindRegion(cluster *kops.Cluster) (string, error) {
-	region := ""
-
+func FindRegionAndZone(cluster *kops.Cluster) (region, zone string, err error) {
+	// All Scaleway pools must be in the same zone, therefore the ScwCloud interface needs the zone attribute
 	for _, subnet := range cluster.Spec.Subnets {
-		zoneRegion := ""
-
-		switch subnet.Zone {
-		case "fr-par-1", "fr-par-2", "fr-par-3":
-			zoneRegion = "fr-par"
-		case "nl-ams-1", "nl-ams-2":
-			zoneRegion = "nl-ams"
-		case "pl-waw-1":
-			zoneRegion = "pl-waw"
-		default:
-			return "", fmt.Errorf("unknown zone: %s", subnet.Zone)
+		if zone != "" && zone != subnet.Zone {
+			return "", "", fmt.Errorf("cluster cannot span multiple zones (found zone %s, but zone is %s)", subnet.Zone, zone)
 		}
-
-		if region != "" && region != zoneRegion {
-			return "", fmt.Errorf("cluster cannot span multiple regions (found zone %s, but region is %s)", subnet.Zone, region)
-		}
-		region = subnet.Region
+		zone = subnet.Zone
 	}
-	return region, nil
+
+	switch zone {
+	case "fr-par-1", "fr-par-2", "fr-par-3":
+		region = "fr-par"
+	case "nl-ams-1", "nl-ams-2":
+		region = "nl-ams"
+	case "pl-waw-1":
+		region = "pl-waw"
+	default:
+		return "", "", fmt.Errorf("unknown zone: %s", zone)
+	}
+
+	return region, zone, nil
 }
 
 func reachState(instanceAPI *instance.API, zone scw.Zone, serverID string, toState instance.ServerState) error {
@@ -101,7 +99,7 @@ func reachState(instanceAPI *instance.API, zone scw.Zone, serverID string, toSta
 	return nil
 }
 
-func waitForInstanceServer(api *instance.API, zone scw.Zone, id string) (*instance.Server, error) {
+func WaitForInstanceServer(api *instance.API, zone scw.Zone, id string) (*instance.Server, error) {
 	retryInterval := defaultInstanceWaitRetryInterval
 	timeout := defaultInstanceWaitTimeout
 
