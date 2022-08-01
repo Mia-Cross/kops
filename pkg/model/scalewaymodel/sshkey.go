@@ -2,6 +2,7 @@ package scalewaymodel
 
 import (
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scalewaytasks"
 )
 
 // SSHKeyModelBuilder configures SSH objects
@@ -13,17 +14,21 @@ type SSHKeyModelBuilder struct {
 var _ fi.ModelBuilder = &SSHKeyModelBuilder{}
 
 func (b *SSHKeyModelBuilder) Build(c *fi.ModelBuilderContext) error {
-	//name, err := b.SSHKeyName()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//t := &scalewaytasks.SSHKey{
-	//	Name:      fi.String(name),
-	//	Lifecycle: b.Lifecycle,
-	//	PublicKey: fi.WrapResource(fi.NewStringResource(string(b.SSHPublicKeys[0]))),
-	//}
-	//c.AddTask(t)
+	name, err := b.SSHKeyName()
+	if err != nil {
+		return err
+	}
+	sshKeyResource := fi.Resource(fi.NewStringResource(string(b.SSHPublicKeys[0])))
+
+	t := &scalewaytasks.SSHKey{
+		Name:      fi.String(name),
+		Lifecycle: b.Lifecycle,
+		PublicKey: &sshKeyResource,
+		//Tags ??
+	}
+	c.AddTask(t)
+
+	// TODO: shouldn't we be able to handle more than 1 ssh key ?
 
 	return nil
 }
