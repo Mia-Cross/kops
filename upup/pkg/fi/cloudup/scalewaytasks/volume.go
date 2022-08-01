@@ -32,12 +32,11 @@ func (v *Volume) CompareWithID() *string {
 func (v *Volume) Find(c *fi.Context) (*Volume, error) {
 	cloud := c.Cloud.(scaleway.ScwCloud)
 	instanceService := cloud.InstanceService()
+	zone := cloud.Zone()
 
-	//zone := os.Getenv("SCW_DEFAULT_ZONE")
-	zone := v.Zone //TODO: is it the same zone ??
 	volumes, err := instanceService.ListVolumes(&instance.ListVolumesRequest{
 		Name: v.Name,
-		Zone: scw.Zone(fi.StringValue(zone)),
+		Zone: scw.Zone(zone),
 	}, scw.WithAllPages())
 	if err != nil {
 		return nil, err

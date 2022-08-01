@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/blang/semver/v4"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/util"
 	"k8s.io/kops/pkg/flagbuilder"
@@ -31,10 +32,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/nodeup/nodetasks"
 	"k8s.io/kops/util/pkg/distributions"
-
 	"k8s.io/kops/util/pkg/proxy"
-
-	"github.com/blang/semver/v4"
 	"k8s.io/klog/v2"
 )
 
