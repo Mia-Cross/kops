@@ -2,8 +2,7 @@ package scalewaytasks
 
 import (
 	"errors"
-
-	"k8s.io/klog/v2"
+	"fmt"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
@@ -102,11 +101,12 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	}
 
 	instanceService := cloud.InstanceService()
+	zone := scw.Zone(fi.StringValue(e.Zone))
 
 	for i := 0; i < newInstanceCount; i++ {
 
 		srv, err := instanceService.CreateServer(&instance.CreateServerRequest{
-			Zone:           scw.Zone(fi.StringValue(e.Zone)),
+			Zone:           zone,
 			Name:           fi.StringValue(e.Name),
 			CommercialType: fi.StringValue(e.CommercialType),
 			Image:          fi.StringValue(e.Image),
@@ -114,8 +114,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			//UserData:       userData,
 		})
 		if err != nil {
-			klog.Errorf("Error creating instance with Name=%s", fi.StringValue(e.Name))
-			return err
+			return fmt.Errorf("error creating instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
 
 		_ = srv.Server.ID
@@ -132,13 +131,19 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		//}
 
 		_, err = instanceService.ServerAction(&instance.ServerActionRequest{
-			Zone:     scw.Zone(fi.StringValue(e.Zone)),
+			Zone:     zone,
 			ServerID: srv.Server.ID,
 			Action:   "poweron",
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("error powering on instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
+
+		_, err = scaleway.WaitForInstanceServer(instanceService, zone, srv.Server.ID)
+		if err != nil {
+			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
+		}
+
 	}
 	return nil
 }

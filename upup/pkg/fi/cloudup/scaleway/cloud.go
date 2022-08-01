@@ -25,6 +25,7 @@ const (
 	TagRoleMaster            = "master"
 	TagInstanceGroup         = "instance-group"
 	TagRoleVolume            = "volume"
+	TagRoleLoadBalancer      = "load-balancer"
 
 	KopsDomainName = "scaleway-terraform.com" // TODO: replace with real domain name
 )

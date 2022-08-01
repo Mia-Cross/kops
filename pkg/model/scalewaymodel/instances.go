@@ -31,7 +31,10 @@ func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			Zone:           fi.String(d.Cluster.Spec.Subnets[0].Zone),
 			CommercialType: fi.String(ig.Spec.MachineType),
 			Image:          fi.String(ig.Spec.Image),
-			Tags:           []string{scaleway.TagInstanceGroup + "=" + ig.Name}, //TODO(jtherin): find a better way
+			Tags: []string{
+				scaleway.TagInstanceGroup + "=" + ig.Name, //TODO(jtherin): find a better way
+				scaleway.TagClusterName + "=" + d.Cluster.Name,
+			},
 		}
 
 		userData, err := d.BootstrapScriptBuilder.ResourceNodeUp(c, ig)
