@@ -98,8 +98,8 @@ func (_ *Volume) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Volume) erro
 
 	for k, v := range e.Tags {
 		// Scw tags don't accept =. Separate the key and value with an ":"
-		klog.V(10).Infof("Scw - Join the volume tag - %s", fmt.Sprintf("%s:%s", k, v))
-		tagArray = append(tagArray, fmt.Sprintf("%s:%s", k, v))
+		klog.V(10).Infof("Scw - Join the volume tag - %s", fmt.Sprintf("%s=%s", k, v))
+		tagArray = append(tagArray, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	instanceService := t.Cloud.InstanceService()

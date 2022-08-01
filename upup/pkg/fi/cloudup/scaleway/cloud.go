@@ -244,7 +244,6 @@ func (s *scwCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]f
 		// QUESTION: Is it serious ? I should probably log it
 		klog.V(8).Infof("could not find any load-balancers for cluster %s", cluster.Name)
 		return nil, nil
-		// TODO: Careful when getting this result, not an empty tab
 	}
 	if len(responseLoadBalancers.LBs) > 1 {
 		klog.V(4).Infof("more than 1 load-balancer with the name %s was found", name)
