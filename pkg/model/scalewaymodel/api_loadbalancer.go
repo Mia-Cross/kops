@@ -2,6 +2,7 @@ package scalewaymodel
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/upup/pkg/fi"
@@ -32,11 +33,9 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 	switch lbSpec.Type {
 	case kops.LoadBalancerTypePublic:
-	// OK
-
+		klog.V(8).Infof("Using public load-balancer")
 	case kops.LoadBalancerTypeInternal:
 		return fmt.Errorf("internal LoadBalancers are not yet supported by kops on Scaleway")
-
 	default:
 		return fmt.Errorf("unhandled LoadBalancer type %q", lbSpec.Type)
 	}

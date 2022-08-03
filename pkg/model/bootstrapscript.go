@@ -214,7 +214,6 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 		}
 	}
 
-	// TODO: find out where this part is used
 	if cluster.Spec.GetCloudProvider() == kops.CloudProviderScaleway {
 		region, _, err := scaleway.FindRegionAndZone(cluster)
 		if err != nil {

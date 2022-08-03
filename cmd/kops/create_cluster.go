@@ -26,18 +26,17 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
-
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	kopsbase "k8s.io/kops"
 	"k8s.io/kops/cmd/kops/util"

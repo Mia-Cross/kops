@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
 	"testing"
 
@@ -9,16 +10,36 @@ import (
 	"github.com/scaleway/scaleway-sdk-go/scw"
 )
 
-func TestZonesList(t *testing.T) {
-	// happy path
+func createValidTestClient(t *testing.T) *scw.Client {
 	config, _ := scw.LoadConfig()
 	profile := config.Profiles["devterraform"]
 	client, err := scw.NewClient(scw.WithProfile(profile))
 	if err != nil {
 		t.Errorf("error creating client: %v", err)
 	}
+	return client
+}
+
+func createInvalidTestClient(t *testing.T) *scw.Client {
+	client, err := scw.NewClient(scw.WithoutAuth())
+	if err != nil {
+		t.Errorf("error creating client: %v", err)
+	}
+	return client
+}
+
+func getDNSProviderZones(client *scw.Client, domainName string) dnsprovider.Zones {
+	dnsProvider := NewProvider(client, domainName)
+	zs, _ := dnsProvider.Zones()
+	return zs
+}
+
+func TestZonesListValid(t *testing.T) {
+	client := createValidTestClient(t)
 	z := &zones{client: client}
+
 	zoneList, err := z.List()
+
 	if err != nil {
 		t.Errorf("error listing zones: %v", err)
 	}
@@ -29,14 +50,14 @@ func TestZonesList(t *testing.T) {
 	if zone.Name() != "scaleway-terraform.com" {
 		t.Errorf("expected example.com as zone name, got: %s", zone.Name())
 	}
+}
 
-	// bad response path
-	client, err = scw.NewClient(scw.WithoutAuth())
-	if err != nil {
-		t.Errorf("error creating client: %v", err)
-	}
-	z = &zones{client: client}
-	zoneList, err = z.List()
+func TestZonesListShouldFail(t *testing.T) {
+	client := createInvalidTestClient(t)
+	z := &zones{client: client}
+
+	zoneList, err := z.List()
+
 	if err == nil {
 		t.Errorf("expected non-nil err")
 	}
@@ -45,33 +66,28 @@ func TestZonesList(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
-	config, _ := scw.LoadConfig()
-	profile := config.Profiles["devterraform"]
-	client, err := scw.NewClient(scw.WithProfile(profile))
-	if err != nil {
-		t.Errorf("error creating client: %v", err)
-	}
+func TestAddValid(t *testing.T) {
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "scaleway-terraform.com")
 
-	// happy path
-	dnsProvider := NewProvider(client, "scaleway-terraform.com")
-	zs, _ := dnsProvider.Zones()
 	inZone := &zone{name: "kops-dns-test", client: client}
-
 	outZone, err := zs.Add(inZone)
+
 	if err != nil {
 		t.Errorf("unexpected err: %v", err)
 	}
 	if outZone.Name() != "kops-dns-test" {
 		t.Errorf("unexpected zone name: %s", outZone.Name())
 	}
+}
 
-	// bad status code
-	dnsProvider = NewProvider(client, "api.k8s.fr-par.scw.cloud")
-	zs, _ = dnsProvider.Zones()
-	inZone = &zone{name: "kops-dns-test", client: client}
+func TestAddShouldFail(t *testing.T) {
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "invalid.domain")
 
-	outZone, err = zs.Add(inZone)
+	inZone := &zone{name: "kops-dns-test", client: client}
+	outZone, err := zs.Add(inZone)
+
 	if outZone != nil {
 		t.Errorf("expected zone to be nil, got :%v", outZone)
 	}
@@ -80,47 +96,36 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-func TestRemove(t *testing.T) {
-	config, _ := scw.LoadConfig()
-	profile := config.Profiles["devterraform"]
-	client, err := scw.NewClient(scw.WithProfile(profile))
-	if err != nil {
-		t.Errorf("error creating client: %v", err)
-	}
+func TestRemoveValid(t *testing.T) {
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "scaleway-terraform.com")
 
-	// happy path
-	dnsProvider := NewProvider(client, "scaleway-terraform.com")
-	zs, _ := dnsProvider.Zones()
 	inZone := &zone{name: "kops-dns-test", client: client}
+	err := zs.Remove(inZone)
 
-	err = zs.Remove(inZone)
 	if err != nil {
 		t.Errorf("unexpected err: %v", err)
 	}
+}
 
-	// bad status code
-	dnsProvider = NewProvider(client, "api.k8s.fr-par.scw.cloud")
-	zs, _ = dnsProvider.Zones()
-	inZone = &zone{name: "kops-dns-test", client: client}
+func TestRemoveShouldFail(t *testing.T) {
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "invalid.domain")
 
-	err = zs.Remove(inZone)
+	inZone := &zone{name: "kops-dns-test", client: client}
+	err := zs.Remove(inZone)
+
 	if err == nil {
 		t.Errorf("expected non-nil err: %v", err)
 	}
 }
 
 func TestNewZone(t *testing.T) {
-	config, _ := scw.LoadConfig()
-	profile := config.Profiles["devterraform"]
-	client, err := scw.NewClient(scw.WithProfile(profile))
-	if err != nil {
-		t.Errorf("error creating client: %v", err)
-	}
-
-	dnsProvider := NewProvider(client, "scaleway-terraform.com")
-	zs, _ := dnsProvider.Zones()
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "scaleway-terraform.com")
 
 	zone, err := zs.New("kops-dns-test")
+
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
 	}
@@ -130,12 +135,8 @@ func TestNewZone(t *testing.T) {
 }
 
 func TestNewResourceRecordSet(t *testing.T) {
-	config, _ := scw.LoadConfig()
-	profile := config.Profiles["devterraform"]
-	client, err := scw.NewClient(scw.WithProfile(profile))
-	if err != nil {
-		t.Errorf("error creating client: %v", err)
-	}
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "scaleway-terraform.com")
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
 		DNSZone: "scaleway-terraform.com",
@@ -158,9 +159,6 @@ func TestNewResourceRecordSet(t *testing.T) {
 		t.Errorf("error creating record: %v", err)
 	}
 
-	dnsProvider := NewProvider(client, "scaleway-terraform.com")
-	zs, _ := dnsProvider.Zones()
-
 	zone, err := zs.New("scaleway-terraform.com")
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
@@ -170,8 +168,8 @@ func TestNewResourceRecordSet(t *testing.T) {
 	}
 
 	rrset, _ := zone.ResourceRecordSets()
-
 	rrsets, err := rrset.List()
+
 	if err != nil {
 		t.Errorf("error listing resource record sets: %v", err)
 	}
@@ -213,13 +211,8 @@ func TestNewResourceRecordSet(t *testing.T) {
 
 func TestResourceRecordChangeset(t *testing.T) {
 	ctx := context.Background()
-
-	config, _ := scw.LoadConfig()
-	profile := config.Profiles["devterraform"]
-	client, err := scw.NewClient(scw.WithProfile(profile))
-	if err != nil {
-		t.Errorf("error creating client: %v", err)
-	}
+	client := createValidTestClient(t)
+	zs := getDNSProviderZones(client, "scaleway-terraform.com")
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
 		DNSZone: "scaleway-terraform.com",
@@ -254,9 +247,6 @@ func TestResourceRecordChangeset(t *testing.T) {
 		t.Errorf("error creating record: %v", err)
 	}
 
-	dnsProvider := NewProvider(client, "scaleway-terraform.com")
-	zs, _ := dnsProvider.Zones()
-
 	zone, err := zs.New("scaleway-terraform.com")
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
@@ -266,7 +256,6 @@ func TestResourceRecordChangeset(t *testing.T) {
 	}
 
 	rrset, _ := zone.ResourceRecordSets()
-
 	changeset := rrset.StartChangeset()
 
 	if !changeset.IsEmpty() {

@@ -19,8 +19,6 @@ const (
 	resourceTypeLoadBalancer = "load-balancer"
 	resourceTypeVolume       = "volume"
 	resourceTypeServer       = "server"
-
-	KopsDomainName = "scaleway-terraform.com" //TODO: replace with real domain name later
 )
 
 type listFn func(fi.Cloud, string) ([]*resources.Resource, error)
@@ -50,21 +48,17 @@ func ListResources(cloud scaleway.ScwCloud, clusterName string) (map[string]*res
 
 func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
+	names := strings.SplitN(clusterName, ".", 2)
+	clusterNameShort := names[0]
+	domainName := names[1]
+
 	records, err := c.DomainService().ListDNSZoneRecords(&domain.ListDNSZoneRecordsRequest{
-		DNSZone: KopsDomainName,
-		//Type: "A", // DO only looks for records of type A, is it the same for us ?
+		DNSZone: domainName,
 	}, scw.WithAllPages())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list records: %s", err)
 	}
 
-	//domainName := ""
-	//for _, domain := range records.Records {
-	//	if strings.HasSuffix(, domain.Name()) {
-	//		domainName = domain.Name()
-	//	}
-	//}
-	//
 	//if domainName == "" {
 	//	if strings.HasSuffix(clusterName, ".k8s.local") {
 	//		klog.Info("Domain Name is empty. Ok to have an empty domain name since cluster is configured as gossip cluster.")
@@ -75,8 +69,7 @@ func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, 
 
 	resourceTrackers := []*resources.Resource(nil)
 	for _, record := range records.Records {
-		shortName := strings.TrimSuffix(clusterName, "."+KopsDomainName)
-		if !strings.HasSuffix(record.Name, shortName) {
+		if !strings.HasSuffix(record.Name, clusterNameShort) {
 			continue
 		}
 		resourceTracker := &resources.Resource{
@@ -84,7 +77,7 @@ func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, 
 			ID:   record.ID,
 			Type: resourceTypeDNSRecord,
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
-				return deleteRecord(cloud, tracker)
+				return deleteRecord(cloud, tracker, domainName)
 			},
 			Obj: record,
 		}
@@ -107,15 +100,15 @@ func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resourc
 	}
 
 	resourceTrackers := []*resources.Resource(nil)
-	for _, lb := range lbs.LBs {
+	for _, loadBalancer := range lbs.LBs {
 		resourceTracker := &resources.Resource{
-			Name: lb.Name,
-			ID:   lb.ID,
+			Name: loadBalancer.Name,
+			ID:   loadBalancer.ID,
 			Type: resourceTypeLoadBalancer,
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
 				return deleteLoadBalancer(cloud, tracker)
 			},
-			Obj: lb,
+			Obj: loadBalancer,
 		}
 		resourceTrackers = append(resourceTrackers, resourceTracker)
 	}
@@ -181,11 +174,11 @@ func listVolumes(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 	return resourceTrackers, nil
 }
 
-func deleteRecord(cloud fi.Cloud, tracker *resources.Resource) error {
+func deleteRecord(cloud fi.Cloud, tracker *resources.Resource, domainName string) error {
 	c := cloud.(scaleway.ScwCloud)
 
 	recordDeleteRequest := &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: KopsDomainName,
+		DNSZone: domainName,
 		Changes: []*domain.RecordChange{
 			{
 				Delete: &domain.RecordChangeDelete{

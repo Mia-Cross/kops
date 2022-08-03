@@ -35,9 +35,8 @@ import (
 
 	"k8s.io/kops/util/pkg/proxy"
 
-	"k8s.io/klog/v2"
-
 	"github.com/blang/semver/v4"
+	"k8s.io/klog/v2"
 )
 
 // ProtokubeBuilder configures protokube
@@ -315,7 +314,7 @@ func (t *ProtokubeBuilder) buildEnvFile() (*nodetasks.File, error) {
 		envVars["SCW_ACCESS_KEY"] = os.Getenv("SCW_ACCESS_KEY")
 		envVars["SCW_SECRET_KEY"] = os.Getenv("SCW_SECRET_KEY")
 		envVars["SCW_DEFAULT_PROJECT_ID"] = os.Getenv("SCW_DEFAULT_PROJECT_ID")
-		// TODO: do we also need to pass the default region ?
+		envVars["SCW_DEFAULT_REGION"] = os.Getenv("SCW_DEFAULT_REGION")
 	}
 
 	for _, envVar := range proxy.GetProxyEnvVars(t.Cluster.Spec.EgressProxy) {

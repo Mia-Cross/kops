@@ -1,6 +1,7 @@
 package scaleway
 
 import (
+	"bytes"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/cloudinstances"
 	"k8s.io/kops/upup/pkg/fi"
+	"strings"
 
 	account "github.com/scaleway/scaleway-sdk-go/api/account/v2alpha1"
 	domain "github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
@@ -26,8 +28,6 @@ const (
 	TagInstanceGroup         = "instance-group"
 	TagRoleVolume            = "volume"
 	TagRoleLoadBalancer      = "load-balancer"
-
-	KopsDomainName = "scaleway-terraform.com" // TODO: replace with real domain name
 )
 
 // ScwCloud exposes all the interfaces required to operate on Scaleway resources
@@ -59,11 +59,12 @@ var _ fi.Cloud = &scwCloudImplementation{}
 
 // scwCloudImplementation holds the scw.Client object to interact with Scaleway resources.
 type scwCloudImplementation struct {
-	client *scw.Client
-	dns    dnsprovider.Interface
-	region string
-	zone   string
-	tags   map[string]string
+	client     *scw.Client
+	dns        dnsprovider.Interface
+	domainName string
+	region     string
+	zone       string
+	tags       map[string]string
 
 	accountAPI  *account.API
 	instanceAPI *instance.API
@@ -112,9 +113,12 @@ func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) 
 		// TODO: check if error is explicit enough when credentials are missing
 	}
 
+	domainName := strings.SplitN(tags[TagClusterName], ".", 2)[1]
+
 	return &scwCloudImplementation{
 		client:      scwClient,
-		dns:         dns.NewProvider(scwClient, KopsDomainName),
+		dns:         dns.NewProvider(scwClient, domainName),
+		domainName:  domainName,
 		region:      region,
 		zone:        zone,
 		tags:        tags,
@@ -138,7 +142,8 @@ func (s *scwCloudImplementation) ProviderID() kops.CloudProviderID {
 }
 
 func (s *scwCloudImplementation) DNS() (dnsprovider.Interface, error) {
-	provider, err := dnsprovider.GetDnsProvider(dns.ProviderName, nil)
+	config := bytes.NewReader([]byte(s.domainName))
+	provider, err := dnsprovider.GetDnsProvider(dns.ProviderName, config)
 	if err != nil {
 		return nil, fmt.Errorf("error building DNS provider: %v", err)
 	}
@@ -205,27 +210,27 @@ func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance)
 }
 
 func (s *scwCloudImplementation) DeregisterInstance(instance *cloudinstances.CloudInstance) error {
-	//TODO implement me
+	//TODO(Mia-Cross) implement me
 	panic("implement me")
 }
 
 func (s *scwCloudImplementation) DeleteGroup(group *cloudinstances.CloudInstanceGroup) error {
-	//TODO implement me
+	//TODO(Mia-Cross) implement me
 	panic("implement me")
 }
 
 func (s *scwCloudImplementation) DetachInstance(instance *cloudinstances.CloudInstance) error {
-	//TODO implement me
+	//TODO(Mia-Cross) implement me
 	panic("implement me")
 }
 
 func (s *scwCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error) {
-	//TODO implement me
+	//TODO(Mia-Cross) implement me
 	panic("implement me")
 }
 
 func (s *scwCloudImplementation) FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error) {
-	//TODO implement me
+	//TODO(Mia-Cross) implement me
 	panic("implement me")
 }
 

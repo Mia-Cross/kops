@@ -169,8 +169,9 @@ func BuildCloud(cluster *kops.Cluster) (fi.Cloud, error) {
 				return nil, err
 			}
 
-			// TODO: handle tags
-			scwCloud, err := scaleway.NewScwCloud(region, zone, nil)
+			cloudTags := map[string]string{scaleway.TagClusterName: cluster.ObjectMeta.Name}
+
+			scwCloud, err := scaleway.NewScwCloud(region, zone, cloudTags)
 			if err != nil {
 				return nil, fmt.Errorf("error initializing scaleway cloud: %s", err)
 			}
