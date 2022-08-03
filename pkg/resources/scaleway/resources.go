@@ -2,6 +2,7 @@ package scaleway
 
 import (
 	"fmt"
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/resources"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
@@ -80,8 +81,8 @@ func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, 
 		}
 		resourceTracker := &resources.Resource{
 			Name: record.Name,
-			Type: resourceTypeDNSRecord,
 			ID:   record.ID,
+			Type: resourceTypeDNSRecord,
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
 				return deleteRecord(cloud, tracker)
 			},
@@ -96,6 +97,7 @@ func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, 
 func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
 	loadBalancerName := "api-" + strings.Replace(clusterName, ".", "-", -1)
+
 	lbs, err := c.LBService().ListLBs(&lb.ListLBsRequest{
 		Region: scw.Region(c.Region()),
 		Name:   &loadBalancerName,
@@ -108,8 +110,8 @@ func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resourc
 	for _, lb := range lbs.LBs {
 		resourceTracker := &resources.Resource{
 			Name: lb.Name,
-			Type: lb.Type,
 			ID:   lb.ID,
+			Type: resourceTypeLoadBalancer,
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
 				return deleteLoadBalancer(cloud, tracker)
 			},
@@ -123,6 +125,7 @@ func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resourc
 
 func listServers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
+
 	servers, err := c.InstanceService().ListServers(&instance.ListServersRequest{
 		Zone: scw.Zone(c.Zone()),
 		Tags: []string{scaleway.TagClusterName + "=" + clusterName},
@@ -134,9 +137,10 @@ func listServers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 	resourceTrackers := []*resources.Resource(nil)
 	for _, server := range servers.Servers {
 		resourceTracker := &resources.Resource{
-			Name: server.Name,
-			Type: resourceTypeServer,
-			ID:   server.ID,
+			Name:   server.Name,
+			ID:     server.ID,
+			Type:   resourceTypeServer,
+			Blocks: []string{resourceTypeVolume},
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
 				return deleteServer(cloud, tracker)
 			},
@@ -150,12 +154,7 @@ func listServers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 
 func listVolumes(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
-	volumesAll, err := c.InstanceService().ListVolumes(&instance.ListVolumesRequest{
-		Zone: scw.Zone(c.Zone()),
-	}, scw.WithAllPages())
-	if len(volumesAll.Volumes) < 1 {
-		return nil, nil
-	}
+
 	volumes, err := c.InstanceService().ListVolumes(&instance.ListVolumesRequest{
 		Zone: scw.Zone(c.Zone()),
 		Tags: []string{scaleway.TagClusterName + "=" + clusterName},
@@ -167,9 +166,10 @@ func listVolumes(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 	resourceTrackers := []*resources.Resource(nil)
 	for _, volume := range volumes.Volumes {
 		resourceTracker := &resources.Resource{
-			Name: volume.Name,
-			Type: string(volume.VolumeType),
-			ID:   volume.ID,
+			Name:    volume.Name,
+			ID:      volume.ID,
+			Type:    resourceTypeVolume,
+			Blocked: []string{resourceTypeServer},
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
 				return deleteVolume(cloud, tracker)
 			},
@@ -183,6 +183,7 @@ func listVolumes(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 
 func deleteRecord(cloud fi.Cloud, tracker *resources.Resource) error {
 	c := cloud.(scaleway.ScwCloud)
+
 	recordDeleteRequest := &domain.UpdateDNSZoneRecordsRequest{
 		DNSZone: KopsDomainName,
 		Changes: []*domain.RecordChange{
@@ -220,31 +221,35 @@ func deleteServer(cloud fi.Cloud, tracker *resources.Resource) error {
 	zone := scw.Zone(c.Zone())
 	instanceService := c.InstanceService()
 
-	//_, err := instanceService.ServerAction(&instance.ServerActionRequest{
-	//	Zone:     zone,
-	//	ServerID: tracker.ID,
-	//	Action:   "poweroff",
-	//})
-	//if err != nil {
-	//	return fmt.Errorf("delete instance %s: error powering off instance: %v", tracker.ID, err)
-	//}
+	srv, err := instanceService.GetServer(&instance.GetServerRequest{
+		Zone:     zone,
+		ServerID: tracker.ID,
+	})
+	if err != nil {
+		klog.V(4).Infof("instance %s was already deleted", tracker.Name)
+	}
+	if srv.Server.State == "running" {
+		_, err := instanceService.ServerAction(&instance.ServerActionRequest{
+			Zone:     zone,
+			ServerID: tracker.ID,
+			Action:   "poweroff",
+		})
+		if err != nil {
+			return fmt.Errorf("delete instance %s: error powering off instance: %v", tracker.ID, err)
+		}
+	}
 
-	//_, err = scaleway.WaitForInstanceServer(instanceService, zone, tracker.ID)
-	//if err != nil {
-	//	return fmt.Errorf("delete instance %s: error waiting for instance: %v", tracker.ID, err)
-	//}
+	_, err = scaleway.WaitForInstanceServer(instanceService, zone, tracker.ID)
+	if err != nil {
+		return fmt.Errorf("delete instance %s: error waiting for instance after power-off: %v", tracker.ID, err)
+	}
 
-	err := instanceService.DeleteServer(&instance.DeleteServerRequest{
+	err = instanceService.DeleteServer(&instance.DeleteServerRequest{
 		ServerID: tracker.ID,
 		Zone:     zone,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete server %s: %s", tracker.ID, err)
-	}
-
-	_, err = scaleway.WaitForInstanceServer(instanceService, zone, tracker.ID)
-	if err != nil {
-		return fmt.Errorf("delete instance %s: error waiting for instance: %v", tracker.ID, err)
 	}
 
 	return nil

@@ -39,6 +39,7 @@ import (
 	nodeidentitygce "k8s.io/kops/pkg/nodeidentity/gce"
 	nodeidentityhetzner "k8s.io/kops/pkg/nodeidentity/hetzner"
 	nodeidentityos "k8s.io/kops/pkg/nodeidentity/openstack"
+	nodeidentityscw "k8s.io/kops/pkg/nodeidentity/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm/gcetpmverifier"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -217,6 +218,12 @@ func addNodeController(mgr manager.Manager, opt *config.Options) error {
 		identifier, err = nodeidentityazure.New(opt.CacheNodeidentityInfo)
 		if err != nil {
 			return fmt.Errorf("error building identifier: %v", err)
+		}
+
+	case "scaleway":
+		identifier, err = nodeidentityscw.New(opt.CacheNodeidentityInfo)
+		if err != nil {
+			return fmt.Errorf("error building identifier: %w", err)
 		}
 
 	case "":

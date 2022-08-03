@@ -1,6 +1,7 @@
 package scalewaytasks
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -65,7 +66,7 @@ func (d *Instance) Find(c *fi.Context) (*Instance, error) {
 		CommercialType: fi.String(lastServer.CommercialType),
 		Image:          d.Image, // image label is lost by server api
 		Tags:           lastServer.Tags,
-		UserData:       d.UserData, // TODO: get from instance or ignore change
+		UserData:       d.UserData, // TODO(Mia-Cross): get from instance or ignore change
 		Lifecycle:      d.Lifecycle,
 	}, nil
 }
@@ -77,7 +78,7 @@ func (d *Instance) Run(c *fi.Context) error {
 func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	cloud := c.Cloud.(scaleway.ScwCloud)
 
-	userData, err := fi.ResourceAsString(*e.UserData)
+	userData, err := fi.ResourceAsBytes(*e.UserData)
 	if err != nil {
 		return err
 	}
@@ -111,24 +112,45 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			CommercialType: fi.StringValue(e.CommercialType),
 			Image:          fi.StringValue(e.Image),
 			Tags:           e.Tags,
-			//UserData:       userData,
 		})
 		if err != nil {
 			return fmt.Errorf("error creating instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
 
-		_ = srv.Server.ID
-		_ = userData //TODO(jtherin): !!!
+		_, err = instanceService.UpdateVolume(&instance.UpdateVolumeRequest{
+			Zone:     zone,
+			VolumeID: srv.Server.Volumes["0"].ID,
+			Tags:     &e.Tags,
+		})
+		if err != nil {
+			return fmt.Errorf("error addings tags to volume for instance %s: %s", fi.StringValue(e.Name), err)
+		}
 
-		//err = cloud.InstanceService().SetServerUserData(&instance.SetServerUserDataRequest{
-		//	ServerID: srv.Server.ID,
-		//	Zone: srv.Server.Zone,
-		//	Key: "",
-		//	Content: ,
-		//})
-		//if err != nil {
-		//	return err
-		//}
+		_ = srv.Server.ID
+		_ = userData // TODO(jtherin): !!!
+
+		req := &instance.SetServerUserDataRequest{
+			ServerID: srv.Server.ID,
+			Zone:     srv.Server.Zone,
+			Key:      "userdata",
+			Content:  bytes.NewBuffer(userData),
+		}
+		err = cloud.InstanceService().SetServerUserData(req)
+		if err != nil {
+			return err
+		}
+
+		ud, err := instanceService.GetServerUserData(&instance.GetServerUserDataRequest{
+			Zone:     srv.Server.Zone,
+			ServerID: srv.Server.ID,
+			Key:      "userdata",
+		})
+		if err != nil {
+			return err
+		}
+		if ud != nil {
+			fmt.Printf("youhou")
+		}
 
 		_, err = instanceService.ServerAction(&instance.ServerActionRequest{
 			Zone:     zone,
