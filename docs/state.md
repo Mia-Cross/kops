@@ -182,7 +182,7 @@ gcsClient, err := storage.New(httpClient)
 
 ## Scaleway (scw://)
 
-Scaleway storage is configured as a flavor of a S3 store.
+Scaleway storage is configured as a flavor of a S3 store. For more information on how to create a bucket with Scaleway, visit [this page](https://www.scaleway.com/en/docs/storage/object/quickstart/).
 
 ## Vault (vault://)
 {{ kops_feature_table(kops_added_ff='1.19') }}

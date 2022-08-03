@@ -24,11 +24,8 @@ func (b *SSHKeyModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		Name:      fi.String(name),
 		Lifecycle: b.Lifecycle,
 		PublicKey: &sshKeyResource,
-		//Tags ??
 	}
 	c.AddTask(t)
-
-	// TODO: shouldn't we be able to handle more than 1 ssh key ?
 
 	return nil
 }

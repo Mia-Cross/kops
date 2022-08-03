@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blang/semver/v4"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	kopsbase "k8s.io/kops"
@@ -76,8 +77,6 @@ import (
 	"k8s.io/kops/util/pkg/mirrors"
 	"k8s.io/kops/util/pkg/reflectutils"
 	"k8s.io/kops/util/pkg/vfs"
-
-	"github.com/blang/semver/v4"
 )
 
 const (

@@ -29,7 +29,7 @@ export S3_SECRET_ACCESS_KEY="my-secret-key" # where <secret-key> is the Spaces A
 
 ## Creating a Single Master Cluster
 
-In the following examples, `example.com` should be replaced with the DigitalOcean domain you created when going through the [Requirements](#requirements).
+In the following examples, `example.com` should be replaced with the Scaleway domain you created when going through the [Requirements](#requirements). // TODO(Mia-Cross): fix broken anchor
 Note that you kops will only be able to successfully provision clusters in regions that support block storage (AMS3, BLR1, FRA1, LON1, NYC1, NYC3, SFO2, SGP1 and TOR1).
 
 ```bash

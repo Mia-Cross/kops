@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/oauth2"
 	"io"
+	"os"
+	"strings"
+
+	"golang.org/x/oauth2"
 	"k8s.io/klog/v2"
 	kopsv "k8s.io/kops"
 	"k8s.io/kops/dns-controller/pkg/dns"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
-	"os"
 
 	"github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
@@ -20,8 +22,7 @@ import (
 var _ dnsprovider.Interface = Interface{}
 
 const (
-	ProviderName   = "scaleway"
-	KopsDomainName = "scaleway-terraform.com" // TODO: replace with real domain name
+	ProviderName = "scaleway"
 )
 
 func init() {
@@ -31,7 +32,13 @@ func init() {
 			return nil, err
 		}
 
-		return NewProvider(client, KopsDomainName), nil
+		domainName := make([]byte, 100) // TODO(Mia-Cross): is 100 enough for a domain name ? There might be a cleaner way to do this
+		_, err = config.Read(domainName)
+		if err != nil {
+			return nil, err
+		}
+
+		return NewProvider(client, strings.TrimRight(string(domainName), "\x00")), nil
 	})
 }
 
@@ -58,7 +65,7 @@ func newClient() (*scw.Client, error) {
 	}
 	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
 
-	// TODO: check if it's necessary to have both the oauth token & the scw env
+	// TODO(Mia-Cross): check if it's necessary to have both the oauth token & the scw env
 	scwClient, err := scw.NewClient(
 		scw.WithHTTPClient(oauthClient),
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
@@ -163,10 +170,8 @@ func (z *zone) Name() string {
 	return z.name
 }
 
-// ID returns the ID of a dns zone
+// ID returns the ID of a dns zone, here we use the name as an identifier
 func (z *zone) ID() string {
-	//return z.id
-	// TODO: shall we use the name as ID ? or handle the zone as a record to be able to get the ID ?
 	return z.name
 }
 
@@ -441,37 +446,24 @@ func (r *resourceRecordChangeset) applyResourceRecordSet(rrset dnsprovider.Resou
 }
 
 // listDomains returns a list of scaleway Domain objects
-//func listDomains(c *scw.Client) ([]*domain.DNSZone, error) {
-func listDomains(c *scw.Client) ([]*domain.DomainSummary, error) {
-	registrarApi := domain.NewRegistrarAPI(c)
+func listDomains(c *scw.Client) ([]*domain.DNSZone, error) {
+	api := domain.NewAPI(c)
 
-	domains, err := registrarApi.ListDomains(&domain.RegistrarAPIListDomainsRequest{
+	domains, err := api.ListDNSZones(&domain.ListDNSZonesRequest{
+		OrganizationID: nil,
+		ProjectID:      nil,
+		OrderBy:        "",
 		Page:           nil,
 		PageSize:       nil,
-		OrderBy:        "",
-		Registrar:      nil,
-		Status:         "",
-		ProjectID:      nil,
-		OrganizationID: nil,
-		IsExternal:     nil,
+		Domain:         "",
+		DNSZone:        "",
 	})
-	//api := domain.NewAPI(c)
-	//
-	//domains, err := api.ListDNSZones(&domain.ListDNSZonesRequest{
-	//	OrganizationID: nil,
-	//	ProjectID:      nil,
-	//	OrderBy:        "",
-	//	Page:           nil,
-	//	PageSize:       nil,
-	//	Domain:         "",
-	//	DNSZone:        "",
-	//})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list domains: %v", err)
 	}
 
-	return domains.Domains, err
+	return domains.DNSZones, err
 }
 
 // createDomain creates a domain provided scw.DomainCreateRequest

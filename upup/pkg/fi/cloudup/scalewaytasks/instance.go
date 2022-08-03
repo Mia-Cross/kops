@@ -129,27 +129,14 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		_ = srv.Server.ID
 		_ = userData // TODO(jtherin): !!!
 
-		req := &instance.SetServerUserDataRequest{
+		err = cloud.InstanceService().SetServerUserData(&instance.SetServerUserDataRequest{
 			ServerID: srv.Server.ID,
 			Zone:     srv.Server.Zone,
-			Key:      "userdata",
+			Key:      "resource",
 			Content:  bytes.NewBuffer(userData),
-		}
-		err = cloud.InstanceService().SetServerUserData(req)
-		if err != nil {
-			return err
-		}
-
-		ud, err := instanceService.GetServerUserData(&instance.GetServerUserDataRequest{
-			Zone:     srv.Server.Zone,
-			ServerID: srv.Server.ID,
-			Key:      "userdata",
 		})
 		if err != nil {
 			return err
-		}
-		if ud != nil {
-			fmt.Printf("youhou")
 		}
 
 		_, err = instanceService.ServerAction(&instance.ServerActionRequest{
