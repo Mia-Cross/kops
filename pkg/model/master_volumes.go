@@ -384,8 +384,6 @@ func (b *MasterVolumeBuilder) addAzureVolume(
 }
 
 func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
-	// QUESTION : implement a SafeClusterName fct like DO and GCE ??
-
 	tags := make(map[string]string)
 	tags[scaleway.TagClusterName] = b.Cluster.ObjectMeta.Name
 	tags[scaleway.TagNameEtcdClusterPrefix+etcd.Name] = m.Name
