@@ -330,11 +330,11 @@ func (r *resourceRecordChangeset) Upsert(rrset dnsprovider.ResourceRecordSet) dn
 func (r *resourceRecordChangeset) Apply(ctx context.Context) error {
 	// Empty changesets should be a relatively quick no-op
 	if r.IsEmpty() {
-		klog.V(4).Info(ctx, "record change set is empty")
+		klog.V(4).Info("record change set is empty")
 		return nil
 	}
 
-	klog.V(2).Info(ctx, "applying changes in record change set")
+	klog.V(2).Info("applying changes in record change set")
 
 	if len(r.additions) > 0 {
 		for _, rrset := range r.additions {
@@ -344,7 +344,7 @@ func (r *resourceRecordChangeset) Apply(ctx context.Context) error {
 			}
 		}
 
-		klog.V(2).Info(ctx, "record change set additions complete")
+		klog.V(2).Info("record change set additions complete")
 	}
 
 	if len(r.upserts) > 0 {
@@ -355,7 +355,7 @@ func (r *resourceRecordChangeset) Apply(ctx context.Context) error {
 			}
 		}
 
-		klog.V(2).Info(ctx, "record change set upserts complete")
+		klog.V(2).Info("record change set upserts complete")
 	}
 
 	if len(r.removals) > 0 {
@@ -375,10 +375,10 @@ func (r *resourceRecordChangeset) Apply(ctx context.Context) error {
 			}
 		}
 
-		klog.V(2).Info(ctx, "record change set removals complete")
+		klog.V(2).Info("record change set removals complete")
 	}
 
-	klog.V(2).Info(ctx, "record change sets successfully applied")
+	klog.V(2).Info("record change sets successfully applied")
 	return nil
 }
 

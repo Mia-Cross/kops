@@ -693,6 +693,10 @@ func setupZones(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.Stri
 				return nil, err
 			}
 		}
+	case api.CloudProviderScaleway:
+		if len(opt.Zones) > 1 {
+			return nil, fmt.Errorf("scaleway cloud provider currently supports only one zone (location)")
+		}
 	}
 
 	for _, zoneName := range allZones.List() {

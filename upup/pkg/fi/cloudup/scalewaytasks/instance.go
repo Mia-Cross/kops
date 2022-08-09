@@ -132,17 +132,37 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		err = cloud.InstanceService().SetServerUserData(&instance.SetServerUserDataRequest{
 			ServerID: srv.Server.ID,
 			Zone:     srv.Server.Zone,
-			Key:      "resource",
+			Key:      "cloud-init",
 			Content:  bytes.NewBuffer(userData),
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("error setting user-data for 'cloud-init': %s", err)
+		}
+
+		err = cloud.InstanceService().SetServerUserData(&instance.SetServerUserDataRequest{
+			ServerID: srv.Server.ID,
+			Zone:     srv.Server.Zone,
+			Key:      "zone",
+			Content:  bytes.NewBufferString(string(srv.Server.Zone)),
+		})
+		if err != nil {
+			return fmt.Errorf("error setting user-data for 'zone': %s", err)
+		}
+
+		err = cloud.InstanceService().SetServerUserData(&instance.SetServerUserDataRequest{
+			ServerID: srv.Server.ID,
+			Zone:     srv.Server.Zone,
+			Key:      "server-id",
+			Content:  bytes.NewBufferString(srv.Server.ID),
+		})
+		if err != nil {
+			return fmt.Errorf("error setting user-data for 'server-id': %s", err)
 		}
 
 		_, err = instanceService.ServerAction(&instance.ServerActionRequest{
 			Zone:     zone,
 			ServerID: srv.Server.ID,
-			Action:   "poweron",
+			Action:   instance.ServerActionPoweron,
 		})
 		if err != nil {
 			return fmt.Errorf("error powering on instance with name %s: %s", fi.StringValue(e.Name), err)
