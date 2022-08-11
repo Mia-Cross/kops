@@ -21,7 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"os"
 	"sort"
 	"strconv"
@@ -29,6 +28,7 @@ import (
 
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops/model"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/utils"
 	"sigs.k8s.io/yaml"
 
@@ -336,6 +336,14 @@ func (b *BootstrapScript) Run(c *fi.Context) error {
 
 	var nodeupScript resources.NodeUpScript
 	nodeupScript.NodeUpAssets = b.builder.NodeUpAssets
+
+	// The following part overrides the default path of the nodeup executable (downloaded from artifacts.k8s.io)
+	// TODO(Mia-Cross): remove this when nodeup is updated with Scaleway support
+	nodeupScript.NodeUpAssets["arm64"].Locations = []string{"https://s3.fr-par.scw.cloud/kops-state-store-test/dist/linux/arm64/nodeup"}
+	nodeupScript.NodeUpAssets["amd64"].Locations = []string{"https://s3.fr-par.scw.cloud/kops-state-store-test/dist/linux/amd64/nodeup"}
+	nodeupScript.NodeUpAssets["arm64"].Hash = scaleway.GenerateHash(".build/dist/linux/arm64/nodeup")
+	nodeupScript.NodeUpAssets["amd64"].Hash = scaleway.GenerateHash(".build/dist/linux/amd64/nodeup")
+
 	nodeupScript.KubeEnv = config
 
 	{

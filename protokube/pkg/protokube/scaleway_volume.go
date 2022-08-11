@@ -3,9 +3,7 @@ package protokube
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"strings"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
@@ -14,10 +12,6 @@ import (
 	kopsv "k8s.io/kops"
 	"k8s.io/kops/protokube/pkg/gossip"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
-)
-
-const (
-	apiMetadataURL = "http://169.254.42.42/user_data"
 )
 
 // ScwCloudProvider defines the Scaleway Cloud volume implementation.
@@ -31,6 +25,7 @@ var _ CloudProvider = &ScwCloudProvider{}
 
 // NewScwCloudProvider returns a new Scaleway Cloud volume provider.
 func NewScwCloudProvider() (*ScwCloudProvider, error) {
+	fmt.Println("HI, YOU'RE DEALING WITH SCALEWAY VOLUMES")
 	scwClient, err := scw.NewClient(
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
@@ -39,33 +34,38 @@ func NewScwCloudProvider() (*ScwCloudProvider, error) {
 		return nil, err
 	}
 
-	//instanceAPI := instance.NewAPI(scwClient)
-
-	userData, err := getScwMetadata(apiMetadataURL)
+	metadataAPI := instance.NewMetadataAPI()
+	metadata, err := metadataAPI.GetMetadata()
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve server id: %s", err)
+		return nil, fmt.Errorf("failed to retrieve server metadata: %s", err)
 	}
-	klog.V(4).Infof("Found ID of the running server: %d", userData)
 
-	//server, err := GetInstanceServer(&instance.GetServerRequest{
-	//	ServerID: serverID,
-	//	Zone: zone,
-	//})
-	//if err != nil || server == nil {
-	//	return nil, fmt.Errorf("failed to get info for the running server: %s", err)
-	//}
-	//klog.V(4).Infof("Found name of the running server: %q", server.Name)
-	//
-	//if len(server.) > 0 {
-	//	klog.V(4).Infof("Found first private net IP of the running server: %q", server.PrivateNet[0].IP.String())
-	//} else {
-	//	return nil, fmt.Errorf("failed to find private net of the running server")
-	//}
+	serverID := metadata.ID
+	klog.V(4).Infof("Found ID of the running server: %v", serverID)
+	zoneID := metadata.Location.ZoneID
+	klog.V(4).Infof("Found zone of the running server: %v", zoneID)
+	zone, err := formatZone(zoneID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to format Scaleway zone: %s", err)
+	}
+	klog.V(4).Infof("Found zone of the running server: %v", zone)
+	privateIP := metadata.PrivateIP
+	klog.V(4).Infof("Found first private net IP of the running server: %q", privateIP)
+
+	instanceAPI := instance.NewAPI(scwClient)
+	server, err := instanceAPI.GetServer(&instance.GetServerRequest{
+		ServerID: serverID,
+		Zone:     zone,
+	})
+	if err != nil || server == nil {
+		return nil, fmt.Errorf("failed to get the running server: %s", err)
+	}
+	klog.V(4).Infof("Found the running server: %q", server.Server.Name)
 
 	s := &ScwCloudProvider{
 		scwClient: scwClient,
-		server:    nil,
-		serverIP:  nil,
+		server:    server.Server,
+		serverIP:  net.IP(privateIP),
 	}
 
 	return s, nil
@@ -91,22 +91,21 @@ func (s *ScwCloudProvider) GossipSeeds() (gossip.SeedProvider, error) {
 	return nil, fmt.Errorf("failed to find cluster name label for running server: %v", s.server.Tags)
 }
 
-func getScwMetadata(url string) (string, error) { //TODO(Mia-Cross): change this a bit
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
+func formatZone(zoneID string) (scw.Zone, error) {
+	switch zoneID {
+	case "par1":
+		return scw.ZoneFrPar1, nil
+	case "par2":
+		return scw.ZoneFrPar2, nil
+	case "par3":
+		return scw.ZoneFrPar3, nil
+	case "ams1":
+		return scw.ZoneNlAms1, nil
+	case "ams2":
+		return scw.ZoneNlAms2, nil
+	case "waw1":
+		return scw.ZonePlWaw1, nil
+	default:
+		return "", fmt.Errorf("unknown zone %s", zoneID)
 	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("droplet metadata returned non-200 status code: %d", resp.StatusCode)
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(bodyBytes), nil
 }
