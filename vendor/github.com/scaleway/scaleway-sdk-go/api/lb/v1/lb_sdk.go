@@ -1022,7 +1022,7 @@ type Backend struct {
 
 	LB *LB `json:"lb"`
 	// Deprecated
-	SendProxyV2 bool `json:"send_proxy_v2"`
+	SendProxyV2 *bool `json:"send_proxy_v2,omitempty"`
 
 	TimeoutServer *time.Duration `json:"timeout_server"`
 
@@ -1135,6 +1135,8 @@ type Certificate struct {
 	CreatedAt *time.Time `json:"created_at"`
 	// UpdatedAt: date at which the certificate was last updated
 	UpdatedAt *time.Time `json:"updated_at"`
+	// StatusDetails: additional information on the status (e.g. in case of certificate generation failure)
+	StatusDetails *string `json:"status_details"`
 }
 
 // CreateCertificateRequestCustomCertificate: import a custom SSL certificate
@@ -1165,7 +1167,7 @@ type Frontend struct {
 
 	TimeoutClient *time.Duration `json:"timeout_client"`
 	// Deprecated
-	Certificate *Certificate `json:"certificate"`
+	Certificate *Certificate `json:"certificate,omitempty"`
 
 	CertificateIDs []string `json:"certificate_ids"`
 
@@ -1324,7 +1326,7 @@ type IP struct {
 
 	ProjectID string `json:"project_id"`
 	// Deprecated
-	Region scw.Region `json:"region"`
+	Region *scw.Region `json:"region,omitempty"`
 
 	Zone scw.Zone `json:"zone"`
 }
@@ -1342,7 +1344,7 @@ type Instance struct {
 
 	UpdatedAt *time.Time `json:"updated_at"`
 	// Deprecated
-	Region scw.Region `json:"region"`
+	Region *scw.Region `json:"region,omitempty"`
 
 	Zone scw.Zone `json:"zone"`
 }
@@ -1389,7 +1391,7 @@ type LB struct {
 
 	RouteCount int32 `json:"route_count"`
 	// Deprecated
-	Region scw.Region `json:"region"`
+	Region *scw.Region `json:"region,omitempty"`
 
 	Zone scw.Zone `json:"zone"`
 }
@@ -1409,7 +1411,7 @@ type LBType struct {
 
 	Description string `json:"description"`
 	// Deprecated
-	Region scw.Region `json:"region"`
+	Region *scw.Region `json:"region,omitempty"`
 
 	Zone scw.Zone `json:"zone"`
 }
@@ -1584,38 +1586,10 @@ type SubscriberWebhookConfig struct {
 
 // Service API
 
-type GetServiceInfoRequest struct {
-	Region scw.Region `json:"-"`
-}
-
-func (s *API) GetServiceInfo(req *GetServiceInfoRequest, opts ...scw.RequestOption) (*scw.ServiceInfo, error) {
-	var err error
-
-	if req.Region == "" {
-		defaultRegion, _ := s.client.GetDefaultRegion()
-		req.Region = defaultRegion
-	}
-
-	if fmt.Sprint(req.Region) == "" {
-		return nil, errors.New("field Region cannot be empty in request")
-	}
-
-	scwReq := &scw.ScalewayRequest{
-		Method:  "GET",
-		Path:    "/lb/v1/regions/" + fmt.Sprint(req.Region) + "",
-		Headers: http.Header{},
-	}
-
-	var resp scw.ServiceInfo
-
-	err = s.client.Do(scwReq, &resp, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}
-
 type ListLBsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// Name: use this to search by name
 	Name *string `json:"-"`
@@ -1676,6 +1650,9 @@ func (s *API) ListLBs(req *ListLBsRequest, opts ...scw.RequestOption) (*ListLBsR
 }
 
 type CreateLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// Deprecated: OrganizationID: owner of resources
 	// Precisely one of OrganizationID, ProjectID must be set.
@@ -1752,6 +1729,9 @@ func (s *API) CreateLB(req *CreateLBRequest, opts ...scw.RequestOption) (*LB, er
 }
 
 type GetLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -1790,6 +1770,9 @@ func (s *API) GetLB(req *GetLBRequest, opts ...scw.RequestOption) (*LB, error) {
 }
 
 type UpdateLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -1848,6 +1831,9 @@ func (s *API) UpdateLB(req *UpdateLBRequest, opts ...scw.RequestOption) (*LB, er
 }
 
 type DeleteLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -1890,6 +1876,9 @@ func (s *API) DeleteLB(req *DeleteLBRequest, opts ...scw.RequestOption) error {
 }
 
 type MigrateLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -1935,6 +1924,9 @@ func (s *API) MigrateLB(req *MigrateLBRequest, opts ...scw.RequestOption) (*LB, 
 }
 
 type ListIPsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// Page: page number
 	Page *int32 `json:"-"`
@@ -1990,6 +1982,9 @@ func (s *API) ListIPs(req *ListIPsRequest, opts ...scw.RequestOption) (*ListIPsR
 }
 
 type CreateIPRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// Deprecated: OrganizationID: owner of resources
 	// Precisely one of OrganizationID, ProjectID must be set.
@@ -2045,6 +2040,9 @@ func (s *API) CreateIP(req *CreateIPRequest, opts ...scw.RequestOption) (*IP, er
 }
 
 type GetIPRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// IPID: IP address ID
 	IPID string `json:"-"`
@@ -2083,6 +2081,9 @@ func (s *API) GetIP(req *GetIPRequest, opts ...scw.RequestOption) (*IP, error) {
 }
 
 type ReleaseIPRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// IPID: IP address ID
 	IPID string `json:"-"`
@@ -2119,6 +2120,9 @@ func (s *API) ReleaseIP(req *ReleaseIPRequest, opts ...scw.RequestOption) error 
 }
 
 type UpdateIPRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// IPID: IP address ID
 	IPID string `json:"-"`
@@ -2164,6 +2168,9 @@ func (s *API) UpdateIP(req *UpdateIPRequest, opts ...scw.RequestOption) (*IP, er
 }
 
 type ListBackendsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -2224,6 +2231,9 @@ func (s *API) ListBackends(req *ListBackendsRequest, opts ...scw.RequestOption) 
 }
 
 type CreateBackendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -2250,7 +2260,7 @@ type CreateBackendRequest struct {
 	// ServerIP: backend server IP addresses list (IPv4 or IPv6)
 	ServerIP []string `json:"server_ip"`
 	// Deprecated: SendProxyV2: deprecated in favor of proxy_protocol field !
-	SendProxyV2 bool `json:"send_proxy_v2"`
+	SendProxyV2 *bool `json:"send_proxy_v2,omitempty"`
 	// TimeoutServer: maximum server connection inactivity time
 	TimeoutServer *time.Duration `json:"timeout_server"`
 	// TimeoutConnect: maximum initical server connection establishment time
@@ -2362,6 +2372,9 @@ func (s *API) CreateBackend(req *CreateBackendRequest, opts ...scw.RequestOption
 }
 
 type GetBackendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -2400,44 +2413,59 @@ func (s *API) GetBackend(req *GetBackendRequest, opts ...scw.RequestOption) (*Ba
 }
 
 type UpdateBackendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
-
+	// BackendID: backend ID to update
 	BackendID string `json:"-"`
-
+	// Name: resource name
 	Name string `json:"name"`
-	// ForwardProtocol:
+	// ForwardProtocol: backend protocol. TCP or HTTP
 	//
 	// Default value: tcp
 	ForwardProtocol Protocol `json:"forward_protocol"`
-
+	// ForwardPort: user sessions will be forwarded to this port of backend servers
 	ForwardPort int32 `json:"forward_port"`
-	// ForwardPortAlgorithm:
+	// ForwardPortAlgorithm: load balancing algorithm
 	//
 	// Default value: roundrobin
 	ForwardPortAlgorithm ForwardPortAlgorithm `json:"forward_port_algorithm"`
-	// StickySessions:
+	// StickySessions: enable cookie-based session persistence
 	//
 	// Default value: none
 	StickySessions StickySessionsType `json:"sticky_sessions"`
-
+	// StickySessionsCookieName: cookie name for for sticky sessions
 	StickySessionsCookieName string `json:"sticky_sessions_cookie_name"`
-	// Deprecated
-	SendProxyV2 bool `json:"send_proxy_v2"`
-
+	// Deprecated: SendProxyV2: deprecated in favor of proxy_protocol field!
+	SendProxyV2 *bool `json:"send_proxy_v2,omitempty"`
+	// TimeoutServer: maximum server connection inactivity time
 	TimeoutServer *time.Duration `json:"timeout_server"`
-
+	// TimeoutConnect: maximum initial server connection establishment time
 	TimeoutConnect *time.Duration `json:"timeout_connect"`
-
+	// TimeoutTunnel: maximum tunnel inactivity time
 	TimeoutTunnel *time.Duration `json:"timeout_tunnel"`
-	// OnMarkedDownAction:
+	// OnMarkedDownAction: modify what occurs when a backend server is marked down
 	//
 	// Default value: on_marked_down_action_none
 	OnMarkedDownAction OnMarkedDownAction `json:"on_marked_down_action"`
-	// ProxyProtocol:
+	// ProxyProtocol: pROXY protocol, forward client's address (must be supported by backend servers software)
+	//
+	// The PROXY protocol informs the other end about the incoming connection, so that it can know the client's address or the public address it accessed to, whatever the upper layer protocol is.
+	//
+	// * `proxy_protocol_none` Disable proxy protocol.
+	// * `proxy_protocol_v1` Version one (text format).
+	// * `proxy_protocol_v2` Version two (binary format).
+	// * `proxy_protocol_v2_ssl` Version two with SSL connection.
+	// * `proxy_protocol_v2_ssl_cn` Version two with SSL connection and common name information.
 	//
 	// Default value: proxy_protocol_unknown
 	ProxyProtocol ProxyProtocol `json:"proxy_protocol"`
-
+	// FailoverHost: scaleway S3 bucket website to be served in case all backend servers are down
+	//
+	// Only the host part of the Scaleway S3 bucket website is expected.
+	// Example: `failover-website.s3-website.fr-par.scw.cloud` if your bucket website URL is `https://failover-website.s3-website.fr-par.scw.cloud/`.
+	//
 	FailoverHost *string `json:"failover_host"`
 }
 
@@ -2519,6 +2547,9 @@ func (s *API) UpdateBackend(req *UpdateBackendRequest, opts ...scw.RequestOption
 }
 
 type DeleteBackendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// BackendID: ID of the backend to delete
 	BackendID string `json:"-"`
@@ -2555,6 +2586,9 @@ func (s *API) DeleteBackend(req *DeleteBackendRequest, opts ...scw.RequestOption
 }
 
 type AddBackendServersRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -2600,6 +2634,9 @@ func (s *API) AddBackendServers(req *AddBackendServersRequest, opts ...scw.Reque
 }
 
 type RemoveBackendServersRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -2645,6 +2682,9 @@ func (s *API) RemoveBackendServers(req *RemoveBackendServersRequest, opts ...scw
 }
 
 type SetBackendServersRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -2690,6 +2730,9 @@ func (s *API) SetBackendServers(req *SetBackendServersRequest, opts ...scw.Reque
 }
 
 type UpdateHealthCheckRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -2800,6 +2843,9 @@ func (s *API) UpdateHealthCheck(req *UpdateHealthCheckRequest, opts ...scw.Reque
 }
 
 type ListFrontendsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -2860,6 +2906,9 @@ func (s *API) ListFrontends(req *ListFrontendsRequest, opts ...scw.RequestOption
 }
 
 type CreateFrontendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -2872,7 +2921,7 @@ type CreateFrontendRequest struct {
 	// TimeoutClient: set the maximum inactivity time on the client side
 	TimeoutClient *time.Duration `json:"timeout_client"`
 	// Deprecated: CertificateID: certificate ID, deprecated in favor of certificate_ids array !
-	CertificateID *string `json:"certificate_id"`
+	CertificateID *string `json:"certificate_id,omitempty"`
 	// CertificateIDs: list of certificate IDs to bind on the frontend
 	CertificateIDs *[]string `json:"certificate_ids"`
 }
@@ -2951,6 +3000,9 @@ func (s *API) CreateFrontend(req *CreateFrontendRequest, opts ...scw.RequestOpti
 }
 
 type GetFrontendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// FrontendID: frontend ID
 	FrontendID string `json:"-"`
@@ -2989,6 +3041,9 @@ func (s *API) GetFrontend(req *GetFrontendRequest, opts ...scw.RequestOption) (*
 }
 
 type UpdateFrontendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// FrontendID: frontend ID
 	FrontendID string `json:"-"`
@@ -3001,7 +3056,7 @@ type UpdateFrontendRequest struct {
 	// TimeoutClient: client session maximum inactivity time
 	TimeoutClient *time.Duration `json:"timeout_client"`
 	// Deprecated: CertificateID: certificate ID, deprecated in favor of `certificate_ids` array!
-	CertificateID *string `json:"certificate_id"`
+	CertificateID *string `json:"certificate_id,omitempty"`
 	// CertificateIDs: list of certificate IDs to bind on the frontend
 	CertificateIDs *[]string `json:"certificate_ids"`
 }
@@ -3076,6 +3131,9 @@ func (s *API) UpdateFrontend(req *UpdateFrontendRequest, opts ...scw.RequestOpti
 }
 
 type DeleteFrontendRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// FrontendID: frontend ID to delete
 	FrontendID string `json:"-"`
@@ -3112,6 +3170,9 @@ func (s *API) DeleteFrontend(req *DeleteFrontendRequest, opts ...scw.RequestOpti
 }
 
 type ListRoutesRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// OrderBy:
 	//
@@ -3166,6 +3227,9 @@ func (s *API) ListRoutes(req *ListRoutesRequest, opts ...scw.RequestOption) (*Li
 }
 
 type CreateRouteRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// FrontendID: origin of redirection
 	FrontendID string `json:"frontend_id"`
@@ -3209,6 +3273,9 @@ func (s *API) CreateRoute(req *CreateRouteRequest, opts ...scw.RequestOption) (*
 }
 
 type GetRouteRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// RouteID: id of route to get
 	RouteID string `json:"-"`
@@ -3247,6 +3314,9 @@ func (s *API) GetRoute(req *GetRouteRequest, opts ...scw.RequestOption) (*Route,
 }
 
 type UpdateRouteRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// RouteID: route id to update
 	RouteID string `json:"-"`
@@ -3294,6 +3364,9 @@ func (s *API) UpdateRoute(req *UpdateRouteRequest, opts ...scw.RequestOption) (*
 }
 
 type DeleteRouteRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// RouteID: route id to delete
 	RouteID string `json:"-"`
@@ -3330,6 +3403,9 @@ func (s *API) DeleteRoute(req *DeleteRouteRequest, opts ...scw.RequestOption) er
 }
 
 type GetLBStatsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -3368,6 +3444,9 @@ func (s *API) GetLBStats(req *GetLBStatsRequest, opts ...scw.RequestOption) (*LB
 }
 
 type ListBackendStatsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -3419,6 +3498,9 @@ func (s *API) ListBackendStats(req *ListBackendStatsRequest, opts ...scw.Request
 }
 
 type ListACLsRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// FrontendID: ID of your frontend
 	FrontendID string `json:"-"`
@@ -3479,6 +3561,9 @@ func (s *API) ListACLs(req *ListACLsRequest, opts ...scw.RequestOption) (*ListAC
 }
 
 type CreateACLRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// FrontendID: ID of your frontend
 	FrontendID string `json:"-"`
@@ -3541,6 +3626,9 @@ func (s *API) CreateACL(req *CreateACLRequest, opts ...scw.RequestOption) (*ACL,
 }
 
 type GetACLRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// ACLID: ID of your ACL ressource
 	ACLID string `json:"-"`
@@ -3579,6 +3667,9 @@ func (s *API) GetACL(req *GetACLRequest, opts ...scw.RequestOption) (*ACL, error
 }
 
 type UpdateACLRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// ACLID: ID of your ACL ressource
 	ACLID string `json:"-"`
@@ -3630,6 +3721,9 @@ func (s *API) UpdateACL(req *UpdateACLRequest, opts ...scw.RequestOption) (*ACL,
 }
 
 type DeleteACLRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// ACLID: ID of your ACL ressource
 	ACLID string `json:"-"`
@@ -3666,6 +3760,9 @@ func (s *API) DeleteACL(req *DeleteACLRequest, opts ...scw.RequestOption) error 
 }
 
 type CreateCertificateRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -3723,6 +3820,9 @@ func (s *API) CreateCertificate(req *CreateCertificateRequest, opts ...scw.Reque
 }
 
 type ListCertificatesRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -3783,6 +3883,9 @@ func (s *API) ListCertificates(req *ListCertificatesRequest, opts ...scw.Request
 }
 
 type GetCertificateRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// CertificateID: certificate ID
 	CertificateID string `json:"-"`
@@ -3821,6 +3924,9 @@ func (s *API) GetCertificate(req *GetCertificateRequest, opts ...scw.RequestOpti
 }
 
 type UpdateCertificateRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// CertificateID: certificate ID
 	CertificateID string `json:"-"`
@@ -3866,6 +3972,9 @@ func (s *API) UpdateCertificate(req *UpdateCertificateRequest, opts ...scw.Reque
 }
 
 type DeleteCertificateRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// CertificateID: certificate ID
 	CertificateID string `json:"-"`
@@ -3902,6 +4011,9 @@ func (s *API) DeleteCertificate(req *DeleteCertificateRequest, opts ...scw.Reque
 }
 
 type ListLBTypesRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// Page: page number
 	Page *int32 `json:"-"`
@@ -3948,6 +4060,9 @@ func (s *API) ListLBTypes(req *ListLBTypesRequest, opts ...scw.RequestOption) (*
 }
 
 type CreateSubscriberRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// Name: subscriber name
 	Name string `json:"name"`
@@ -4009,6 +4124,9 @@ func (s *API) CreateSubscriber(req *CreateSubscriberRequest, opts ...scw.Request
 }
 
 type GetSubscriberRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// SubscriberID: subscriber ID
 	SubscriberID string `json:"-"`
@@ -4047,6 +4165,9 @@ func (s *API) GetSubscriber(req *GetSubscriberRequest, opts ...scw.RequestOption
 }
 
 type ListSubscriberRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// OrderBy: you can order the response by created_at asc/desc or name asc/desc
 	//
@@ -4107,6 +4228,9 @@ func (s *API) ListSubscriber(req *ListSubscriberRequest, opts ...scw.RequestOpti
 }
 
 type UpdateSubscriberRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// SubscriberID: assign the resource to a project IDs
 	SubscriberID string `json:"-"`
@@ -4158,6 +4282,9 @@ func (s *API) UpdateSubscriber(req *UpdateSubscriberRequest, opts ...scw.Request
 }
 
 type DeleteSubscriberRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// SubscriberID: subscriber ID
 	SubscriberID string `json:"-"`
@@ -4194,6 +4321,9 @@ func (s *API) DeleteSubscriber(req *DeleteSubscriberRequest, opts ...scw.Request
 }
 
 type SubscribeToLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4239,6 +4369,9 @@ func (s *API) SubscribeToLB(req *SubscribeToLBRequest, opts ...scw.RequestOption
 }
 
 type UnsubscribeFromLBRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4277,6 +4410,9 @@ func (s *API) UnsubscribeFromLB(req *UnsubscribeFromLBRequest, opts ...scw.Reque
 }
 
 type ListLBPrivateNetworksRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 
 	LBID string `json:"-"`
@@ -4334,6 +4470,9 @@ func (s *API) ListLBPrivateNetworks(req *ListLBPrivateNetworksRequest, opts ...s
 }
 
 type AttachPrivateNetworkRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4389,6 +4528,9 @@ func (s *API) AttachPrivateNetwork(req *AttachPrivateNetworkRequest, opts ...scw
 }
 
 type DetachPrivateNetworkRequest struct {
+	// Region:
+	//
+	// Region to target. If none is passed will use default region from the config
 	Region scw.Region `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4437,38 +4579,10 @@ func (s *API) DetachPrivateNetwork(req *DetachPrivateNetworkRequest, opts ...scw
 
 // Service ZonedAPI
 
-type ZonedAPIGetServiceInfoRequest struct {
-	Zone scw.Zone `json:"-"`
-}
-
-func (s *ZonedAPI) GetServiceInfo(req *ZonedAPIGetServiceInfoRequest, opts ...scw.RequestOption) (*scw.ServiceInfo, error) {
-	var err error
-
-	if req.Zone == "" {
-		defaultZone, _ := s.client.GetDefaultZone()
-		req.Zone = defaultZone
-	}
-
-	if fmt.Sprint(req.Zone) == "" {
-		return nil, errors.New("field Zone cannot be empty in request")
-	}
-
-	scwReq := &scw.ScalewayRequest{
-		Method:  "GET",
-		Path:    "/lb/v1/zones/" + fmt.Sprint(req.Zone) + "",
-		Headers: http.Header{},
-	}
-
-	var resp scw.ServiceInfo
-
-	err = s.client.Do(scwReq, &resp, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}
-
 type ZonedAPIListLBsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: use this to search by name
 	Name *string `json:"-"`
@@ -4529,6 +4643,9 @@ func (s *ZonedAPI) ListLBs(req *ZonedAPIListLBsRequest, opts ...scw.RequestOptio
 }
 
 type ZonedAPICreateLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Deprecated: OrganizationID: owner of resources
 	// Precisely one of OrganizationID, ProjectID must be set.
@@ -4605,6 +4722,9 @@ func (s *ZonedAPI) CreateLB(req *ZonedAPICreateLBRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPIGetLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4643,6 +4763,9 @@ func (s *ZonedAPI) GetLB(req *ZonedAPIGetLBRequest, opts ...scw.RequestOption) (
 }
 
 type ZonedAPIUpdateLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4701,6 +4824,9 @@ func (s *ZonedAPI) UpdateLB(req *ZonedAPIUpdateLBRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPIDeleteLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4743,6 +4869,9 @@ func (s *ZonedAPI) DeleteLB(req *ZonedAPIDeleteLBRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPIMigrateLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -4788,6 +4917,9 @@ func (s *ZonedAPI) MigrateLB(req *ZonedAPIMigrateLBRequest, opts ...scw.RequestO
 }
 
 type ZonedAPIListIPsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Page: page number
 	Page *int32 `json:"-"`
@@ -4843,6 +4975,9 @@ func (s *ZonedAPI) ListIPs(req *ZonedAPIListIPsRequest, opts ...scw.RequestOptio
 }
 
 type ZonedAPICreateIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Deprecated: OrganizationID: owner of resources
 	// Precisely one of OrganizationID, ProjectID must be set.
@@ -4898,6 +5033,9 @@ func (s *ZonedAPI) CreateIP(req *ZonedAPICreateIPRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPIGetIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// IPID: IP address ID
 	IPID string `json:"-"`
@@ -4936,6 +5074,9 @@ func (s *ZonedAPI) GetIP(req *ZonedAPIGetIPRequest, opts ...scw.RequestOption) (
 }
 
 type ZonedAPIReleaseIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// IPID: IP address ID
 	IPID string `json:"-"`
@@ -4972,6 +5113,9 @@ func (s *ZonedAPI) ReleaseIP(req *ZonedAPIReleaseIPRequest, opts ...scw.RequestO
 }
 
 type ZonedAPIUpdateIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// IPID: IP address ID
 	IPID string `json:"-"`
@@ -5017,6 +5161,9 @@ func (s *ZonedAPI) UpdateIP(req *ZonedAPIUpdateIPRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPIListBackendsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -5077,6 +5224,9 @@ func (s *ZonedAPI) ListBackends(req *ZonedAPIListBackendsRequest, opts ...scw.Re
 }
 
 type ZonedAPICreateBackendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -5103,7 +5253,7 @@ type ZonedAPICreateBackendRequest struct {
 	// ServerIP: backend server IP addresses list (IPv4 or IPv6)
 	ServerIP []string `json:"server_ip"`
 	// Deprecated: SendProxyV2: deprecated in favor of proxy_protocol field !
-	SendProxyV2 bool `json:"send_proxy_v2"`
+	SendProxyV2 *bool `json:"send_proxy_v2,omitempty"`
 	// TimeoutServer: maximum server connection inactivity time
 	TimeoutServer *time.Duration `json:"timeout_server"`
 	// TimeoutConnect: maximum initical server connection establishment time
@@ -5215,6 +5365,9 @@ func (s *ZonedAPI) CreateBackend(req *ZonedAPICreateBackendRequest, opts ...scw.
 }
 
 type ZonedAPIGetBackendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -5253,44 +5406,59 @@ func (s *ZonedAPI) GetBackend(req *ZonedAPIGetBackendRequest, opts ...scw.Reques
 }
 
 type ZonedAPIUpdateBackendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
-
+	// BackendID: backend ID to update
 	BackendID string `json:"-"`
-
+	// Name: resource name
 	Name string `json:"name"`
-	// ForwardProtocol:
+	// ForwardProtocol: backend protocol. TCP or HTTP
 	//
 	// Default value: tcp
 	ForwardProtocol Protocol `json:"forward_protocol"`
-
+	// ForwardPort: user sessions will be forwarded to this port of backend servers
 	ForwardPort int32 `json:"forward_port"`
-	// ForwardPortAlgorithm:
+	// ForwardPortAlgorithm: load balancing algorithm
 	//
 	// Default value: roundrobin
 	ForwardPortAlgorithm ForwardPortAlgorithm `json:"forward_port_algorithm"`
-	// StickySessions:
+	// StickySessions: enable cookie-based session persistence
 	//
 	// Default value: none
 	StickySessions StickySessionsType `json:"sticky_sessions"`
-
+	// StickySessionsCookieName: cookie name for for sticky sessions
 	StickySessionsCookieName string `json:"sticky_sessions_cookie_name"`
-	// Deprecated
-	SendProxyV2 bool `json:"send_proxy_v2"`
-
+	// Deprecated: SendProxyV2: deprecated in favor of proxy_protocol field!
+	SendProxyV2 *bool `json:"send_proxy_v2,omitempty"`
+	// TimeoutServer: maximum server connection inactivity time
 	TimeoutServer *time.Duration `json:"timeout_server"`
-
+	// TimeoutConnect: maximum initial server connection establishment time
 	TimeoutConnect *time.Duration `json:"timeout_connect"`
-
+	// TimeoutTunnel: maximum tunnel inactivity time
 	TimeoutTunnel *time.Duration `json:"timeout_tunnel"`
-	// OnMarkedDownAction:
+	// OnMarkedDownAction: modify what occurs when a backend server is marked down
 	//
 	// Default value: on_marked_down_action_none
 	OnMarkedDownAction OnMarkedDownAction `json:"on_marked_down_action"`
-	// ProxyProtocol:
+	// ProxyProtocol: pROXY protocol, forward client's address (must be supported by backend servers software)
+	//
+	// The PROXY protocol informs the other end about the incoming connection, so that it can know the client's address or the public address it accessed to, whatever the upper layer protocol is.
+	//
+	// * `proxy_protocol_none` Disable proxy protocol.
+	// * `proxy_protocol_v1` Version one (text format).
+	// * `proxy_protocol_v2` Version two (binary format).
+	// * `proxy_protocol_v2_ssl` Version two with SSL connection.
+	// * `proxy_protocol_v2_ssl_cn` Version two with SSL connection and common name information.
 	//
 	// Default value: proxy_protocol_unknown
 	ProxyProtocol ProxyProtocol `json:"proxy_protocol"`
-
+	// FailoverHost: scaleway S3 bucket website to be served in case all backend servers are down
+	//
+	// Only the host part of the Scaleway S3 bucket website is expected.
+	// Example: `failover-website.s3-website.fr-par.scw.cloud` if your bucket website URL is `https://failover-website.s3-website.fr-par.scw.cloud/`.
+	//
 	FailoverHost *string `json:"failover_host"`
 }
 
@@ -5372,6 +5540,9 @@ func (s *ZonedAPI) UpdateBackend(req *ZonedAPIUpdateBackendRequest, opts ...scw.
 }
 
 type ZonedAPIDeleteBackendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// BackendID: ID of the backend to delete
 	BackendID string `json:"-"`
@@ -5408,6 +5579,9 @@ func (s *ZonedAPI) DeleteBackend(req *ZonedAPIDeleteBackendRequest, opts ...scw.
 }
 
 type ZonedAPIAddBackendServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -5453,6 +5627,9 @@ func (s *ZonedAPI) AddBackendServers(req *ZonedAPIAddBackendServersRequest, opts
 }
 
 type ZonedAPIRemoveBackendServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -5498,6 +5675,9 @@ func (s *ZonedAPI) RemoveBackendServers(req *ZonedAPIRemoveBackendServersRequest
 }
 
 type ZonedAPISetBackendServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -5543,6 +5723,9 @@ func (s *ZonedAPI) SetBackendServers(req *ZonedAPISetBackendServersRequest, opts
 }
 
 type ZonedAPIUpdateHealthCheckRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// BackendID: backend ID
 	BackendID string `json:"-"`
@@ -5653,6 +5836,9 @@ func (s *ZonedAPI) UpdateHealthCheck(req *ZonedAPIUpdateHealthCheckRequest, opts
 }
 
 type ZonedAPIListFrontendsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -5713,6 +5899,9 @@ func (s *ZonedAPI) ListFrontends(req *ZonedAPIListFrontendsRequest, opts ...scw.
 }
 
 type ZonedAPICreateFrontendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -5725,7 +5914,7 @@ type ZonedAPICreateFrontendRequest struct {
 	// TimeoutClient: set the maximum inactivity time on the client side
 	TimeoutClient *time.Duration `json:"timeout_client"`
 	// Deprecated: CertificateID: certificate ID, deprecated in favor of certificate_ids array !
-	CertificateID *string `json:"certificate_id"`
+	CertificateID *string `json:"certificate_id,omitempty"`
 	// CertificateIDs: list of certificate IDs to bind on the frontend
 	CertificateIDs *[]string `json:"certificate_ids"`
 }
@@ -5804,6 +5993,9 @@ func (s *ZonedAPI) CreateFrontend(req *ZonedAPICreateFrontendRequest, opts ...sc
 }
 
 type ZonedAPIGetFrontendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: frontend ID
 	FrontendID string `json:"-"`
@@ -5842,6 +6034,9 @@ func (s *ZonedAPI) GetFrontend(req *ZonedAPIGetFrontendRequest, opts ...scw.Requ
 }
 
 type ZonedAPIUpdateFrontendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: frontend ID
 	FrontendID string `json:"-"`
@@ -5854,7 +6049,7 @@ type ZonedAPIUpdateFrontendRequest struct {
 	// TimeoutClient: client session maximum inactivity time
 	TimeoutClient *time.Duration `json:"timeout_client"`
 	// Deprecated: CertificateID: certificate ID, deprecated in favor of `certificate_ids` array!
-	CertificateID *string `json:"certificate_id"`
+	CertificateID *string `json:"certificate_id,omitempty"`
 	// CertificateIDs: list of certificate IDs to bind on the frontend
 	CertificateIDs *[]string `json:"certificate_ids"`
 }
@@ -5929,6 +6124,9 @@ func (s *ZonedAPI) UpdateFrontend(req *ZonedAPIUpdateFrontendRequest, opts ...sc
 }
 
 type ZonedAPIDeleteFrontendRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: frontend ID to delete
 	FrontendID string `json:"-"`
@@ -5965,6 +6163,9 @@ func (s *ZonedAPI) DeleteFrontend(req *ZonedAPIDeleteFrontendRequest, opts ...sc
 }
 
 type ZonedAPIListRoutesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// OrderBy:
 	//
@@ -6019,6 +6220,9 @@ func (s *ZonedAPI) ListRoutes(req *ZonedAPIListRoutesRequest, opts ...scw.Reques
 }
 
 type ZonedAPICreateRouteRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: origin of redirection
 	FrontendID string `json:"frontend_id"`
@@ -6062,6 +6266,9 @@ func (s *ZonedAPI) CreateRoute(req *ZonedAPICreateRouteRequest, opts ...scw.Requ
 }
 
 type ZonedAPIGetRouteRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// RouteID: id of route to get
 	RouteID string `json:"-"`
@@ -6100,6 +6307,9 @@ func (s *ZonedAPI) GetRoute(req *ZonedAPIGetRouteRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPIUpdateRouteRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// RouteID: route id to update
 	RouteID string `json:"-"`
@@ -6147,6 +6357,9 @@ func (s *ZonedAPI) UpdateRoute(req *ZonedAPIUpdateRouteRequest, opts ...scw.Requ
 }
 
 type ZonedAPIDeleteRouteRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// RouteID: route id to delete
 	RouteID string `json:"-"`
@@ -6183,6 +6396,9 @@ func (s *ZonedAPI) DeleteRoute(req *ZonedAPIDeleteRouteRequest, opts ...scw.Requ
 }
 
 type ZonedAPIGetLBStatsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -6221,6 +6437,9 @@ func (s *ZonedAPI) GetLBStats(req *ZonedAPIGetLBStatsRequest, opts ...scw.Reques
 }
 
 type ZonedAPIListBackendStatsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -6272,6 +6491,9 @@ func (s *ZonedAPI) ListBackendStats(req *ZonedAPIListBackendStatsRequest, opts .
 }
 
 type ZonedAPIListACLsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: ID of your frontend
 	FrontendID string `json:"-"`
@@ -6332,6 +6554,9 @@ func (s *ZonedAPI) ListACLs(req *ZonedAPIListACLsRequest, opts ...scw.RequestOpt
 }
 
 type ZonedAPICreateACLRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: ID of your frontend
 	FrontendID string `json:"-"`
@@ -6394,6 +6619,9 @@ func (s *ZonedAPI) CreateACL(req *ZonedAPICreateACLRequest, opts ...scw.RequestO
 }
 
 type ZonedAPIGetACLRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ACLID: ID of your ACL ressource
 	ACLID string `json:"-"`
@@ -6432,6 +6660,9 @@ func (s *ZonedAPI) GetACL(req *ZonedAPIGetACLRequest, opts ...scw.RequestOption)
 }
 
 type ZonedAPIUpdateACLRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ACLID: ID of your ACL ressource
 	ACLID string `json:"-"`
@@ -6483,6 +6714,9 @@ func (s *ZonedAPI) UpdateACL(req *ZonedAPIUpdateACLRequest, opts ...scw.RequestO
 }
 
 type ZonedAPIDeleteACLRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ACLID: ID of your ACL ressource
 	ACLID string `json:"-"`
@@ -6519,6 +6753,9 @@ func (s *ZonedAPI) DeleteACL(req *ZonedAPIDeleteACLRequest, opts ...scw.RequestO
 }
 
 type ZonedAPISetACLsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// FrontendID: the Frontend to change ACL to
 	FrontendID string `json:"-"`
@@ -6564,6 +6801,9 @@ func (s *ZonedAPI) SetACLs(req *ZonedAPISetACLsRequest, opts ...scw.RequestOptio
 }
 
 type ZonedAPICreateCertificateRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -6621,6 +6861,9 @@ func (s *ZonedAPI) CreateCertificate(req *ZonedAPICreateCertificateRequest, opts
 }
 
 type ZonedAPIListCertificatesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -6681,6 +6924,9 @@ func (s *ZonedAPI) ListCertificates(req *ZonedAPIListCertificatesRequest, opts .
 }
 
 type ZonedAPIGetCertificateRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// CertificateID: certificate ID
 	CertificateID string `json:"-"`
@@ -6719,6 +6965,9 @@ func (s *ZonedAPI) GetCertificate(req *ZonedAPIGetCertificateRequest, opts ...sc
 }
 
 type ZonedAPIUpdateCertificateRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// CertificateID: certificate ID
 	CertificateID string `json:"-"`
@@ -6764,6 +7013,9 @@ func (s *ZonedAPI) UpdateCertificate(req *ZonedAPIUpdateCertificateRequest, opts
 }
 
 type ZonedAPIDeleteCertificateRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// CertificateID: certificate ID
 	CertificateID string `json:"-"`
@@ -6800,6 +7052,9 @@ func (s *ZonedAPI) DeleteCertificate(req *ZonedAPIDeleteCertificateRequest, opts
 }
 
 type ZonedAPIListLBTypesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Page: page number
 	Page *int32 `json:"-"`
@@ -6846,6 +7101,9 @@ func (s *ZonedAPI) ListLBTypes(req *ZonedAPIListLBTypesRequest, opts ...scw.Requ
 }
 
 type ZonedAPICreateSubscriberRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: subscriber name
 	Name string `json:"name"`
@@ -6907,6 +7165,9 @@ func (s *ZonedAPI) CreateSubscriber(req *ZonedAPICreateSubscriberRequest, opts .
 }
 
 type ZonedAPIGetSubscriberRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SubscriberID: subscriber ID
 	SubscriberID string `json:"-"`
@@ -6945,6 +7206,9 @@ func (s *ZonedAPI) GetSubscriber(req *ZonedAPIGetSubscriberRequest, opts ...scw.
 }
 
 type ZonedAPIListSubscriberRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// OrderBy: you can order the response by created_at asc/desc or name asc/desc
 	//
@@ -7005,6 +7269,9 @@ func (s *ZonedAPI) ListSubscriber(req *ZonedAPIListSubscriberRequest, opts ...sc
 }
 
 type ZonedAPIUpdateSubscriberRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SubscriberID: assign the resource to a project IDs
 	SubscriberID string `json:"-"`
@@ -7056,6 +7323,9 @@ func (s *ZonedAPI) UpdateSubscriber(req *ZonedAPIUpdateSubscriberRequest, opts .
 }
 
 type ZonedAPIDeleteSubscriberRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SubscriberID: subscriber ID
 	SubscriberID string `json:"-"`
@@ -7092,6 +7362,9 @@ func (s *ZonedAPI) DeleteSubscriber(req *ZonedAPIDeleteSubscriberRequest, opts .
 }
 
 type ZonedAPISubscribeToLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -7137,6 +7410,9 @@ func (s *ZonedAPI) SubscribeToLB(req *ZonedAPISubscribeToLBRequest, opts ...scw.
 }
 
 type ZonedAPIUnsubscribeFromLBRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -7175,6 +7451,9 @@ func (s *ZonedAPI) UnsubscribeFromLB(req *ZonedAPIUnsubscribeFromLBRequest, opts
 }
 
 type ZonedAPIListLBPrivateNetworksRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	LBID string `json:"-"`
@@ -7232,6 +7511,9 @@ func (s *ZonedAPI) ListLBPrivateNetworks(req *ZonedAPIListLBPrivateNetworksReque
 }
 
 type ZonedAPIAttachPrivateNetworkRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`
@@ -7287,6 +7569,9 @@ func (s *ZonedAPI) AttachPrivateNetwork(req *ZonedAPIAttachPrivateNetworkRequest
 }
 
 type ZonedAPIDetachPrivateNetworkRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// LBID: load balancer ID
 	LBID string `json:"-"`

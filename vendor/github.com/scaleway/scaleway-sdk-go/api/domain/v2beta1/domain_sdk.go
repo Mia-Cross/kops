@@ -67,40 +67,6 @@ func NewRegistrarAPI(client *scw.Client) *RegistrarAPI {
 	}
 }
 
-type ContactCivility string
-
-const (
-	// ContactCivilityCivilityUnknown is [insert doc].
-	ContactCivilityCivilityUnknown = ContactCivility("civility_unknown")
-	// ContactCivilityMr is [insert doc].
-	ContactCivilityMr = ContactCivility("mr")
-	// ContactCivilityMrs is [insert doc].
-	ContactCivilityMrs = ContactCivility("mrs")
-)
-
-func (enum ContactCivility) String() string {
-	if enum == "" {
-		// return default value if empty
-		return "civility_unknown"
-	}
-	return string(enum)
-}
-
-func (enum ContactCivility) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"%s"`, enum)), nil
-}
-
-func (enum *ContactCivility) UnmarshalJSON(data []byte) error {
-	tmp := ""
-
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return err
-	}
-
-	*enum = ContactCivility(ContactCivility(tmp).String())
-	return nil
-}
-
 type ContactEmailStatus string
 
 const (
@@ -142,8 +108,8 @@ type ContactExtensionFRMode string
 const (
 	// ContactExtensionFRModeModeUnknown is [insert doc].
 	ContactExtensionFRModeModeUnknown = ContactExtensionFRMode("mode_unknown")
-	// ContactExtensionFRModeParticular is [insert doc].
-	ContactExtensionFRModeParticular = ContactExtensionFRMode("particular")
+	// ContactExtensionFRModeIndividual is [insert doc].
+	ContactExtensionFRModeIndividual = ContactExtensionFRMode("individual")
 	// ContactExtensionFRModeCompanyIdentificationCode is [insert doc].
 	ContactExtensionFRModeCompanyIdentificationCode = ContactExtensionFRMode("company_identification_code")
 	// ContactExtensionFRModeDuns is [insert doc].
@@ -152,8 +118,8 @@ const (
 	ContactExtensionFRModeLocal = ContactExtensionFRMode("local")
 	// ContactExtensionFRModeAssociation is [insert doc].
 	ContactExtensionFRModeAssociation = ContactExtensionFRMode("association")
-	// ContactExtensionFRModeBrand is [insert doc].
-	ContactExtensionFRModeBrand = ContactExtensionFRMode("brand")
+	// ContactExtensionFRModeTrademark is [insert doc].
+	ContactExtensionFRModeTrademark = ContactExtensionFRMode("trademark")
 	// ContactExtensionFRModeCodeAuthAfnic is [insert doc].
 	ContactExtensionFRModeCodeAuthAfnic = ContactExtensionFRMode("code_auth_afnic")
 )
@@ -181,15 +147,81 @@ func (enum *ContactExtensionFRMode) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type ContactExtensionNLLegalForm string
+
+const (
+	// ContactExtensionNLLegalFormLegalFormUnknown is [insert doc].
+	ContactExtensionNLLegalFormLegalFormUnknown = ContactExtensionNLLegalForm("legal_form_unknown")
+	// ContactExtensionNLLegalFormOther is [insert doc].
+	ContactExtensionNLLegalFormOther = ContactExtensionNLLegalForm("other")
+	// ContactExtensionNLLegalFormNonDutchEuCompany is [insert doc].
+	ContactExtensionNLLegalFormNonDutchEuCompany = ContactExtensionNLLegalForm("non_dutch_eu_company")
+	// ContactExtensionNLLegalFormNonDutchLegalFormEnterpriseSubsidiary is [insert doc].
+	ContactExtensionNLLegalFormNonDutchLegalFormEnterpriseSubsidiary = ContactExtensionNLLegalForm("non_dutch_legal_form_enterprise_subsidiary")
+	// ContactExtensionNLLegalFormLimitedCompany is [insert doc].
+	ContactExtensionNLLegalFormLimitedCompany = ContactExtensionNLLegalForm("limited_company")
+	// ContactExtensionNLLegalFormLimitedCompanyInFormation is [insert doc].
+	ContactExtensionNLLegalFormLimitedCompanyInFormation = ContactExtensionNLLegalForm("limited_company_in_formation")
+	// ContactExtensionNLLegalFormCooperative is [insert doc].
+	ContactExtensionNLLegalFormCooperative = ContactExtensionNLLegalForm("cooperative")
+	// ContactExtensionNLLegalFormLimitedPartnership is [insert doc].
+	ContactExtensionNLLegalFormLimitedPartnership = ContactExtensionNLLegalForm("limited_partnership")
+	// ContactExtensionNLLegalFormSoleCompany is [insert doc].
+	ContactExtensionNLLegalFormSoleCompany = ContactExtensionNLLegalForm("sole_company")
+	// ContactExtensionNLLegalFormEuropeanEconomicInterestGroup is [insert doc].
+	ContactExtensionNLLegalFormEuropeanEconomicInterestGroup = ContactExtensionNLLegalForm("european_economic_interest_group")
+	// ContactExtensionNLLegalFormReligiousEntity is [insert doc].
+	ContactExtensionNLLegalFormReligiousEntity = ContactExtensionNLLegalForm("religious_entity")
+	// ContactExtensionNLLegalFormPartnership is [insert doc].
+	ContactExtensionNLLegalFormPartnership = ContactExtensionNLLegalForm("partnership")
+	// ContactExtensionNLLegalFormPublicCompany is [insert doc].
+	ContactExtensionNLLegalFormPublicCompany = ContactExtensionNLLegalForm("public_company")
+	// ContactExtensionNLLegalFormMutualBenefitCompany is [insert doc].
+	ContactExtensionNLLegalFormMutualBenefitCompany = ContactExtensionNLLegalForm("mutual_benefit_company")
+	// ContactExtensionNLLegalFormResidential is [insert doc].
+	ContactExtensionNLLegalFormResidential = ContactExtensionNLLegalForm("residential")
+	// ContactExtensionNLLegalFormShippingCompany is [insert doc].
+	ContactExtensionNLLegalFormShippingCompany = ContactExtensionNLLegalForm("shipping_company")
+	// ContactExtensionNLLegalFormFoundation is [insert doc].
+	ContactExtensionNLLegalFormFoundation = ContactExtensionNLLegalForm("foundation")
+	// ContactExtensionNLLegalFormAssociation is [insert doc].
+	ContactExtensionNLLegalFormAssociation = ContactExtensionNLLegalForm("association")
+	// ContactExtensionNLLegalFormTradingPartnership is [insert doc].
+	ContactExtensionNLLegalFormTradingPartnership = ContactExtensionNLLegalForm("trading_partnership")
+)
+
+func (enum ContactExtensionNLLegalForm) String() string {
+	if enum == "" {
+		// return default value if empty
+		return "legal_form_unknown"
+	}
+	return string(enum)
+}
+
+func (enum ContactExtensionNLLegalForm) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, enum)), nil
+}
+
+func (enum *ContactExtensionNLLegalForm) UnmarshalJSON(data []byte) error {
+	tmp := ""
+
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+
+	*enum = ContactExtensionNLLegalForm(ContactExtensionNLLegalForm(tmp).String())
+	return nil
+}
+
 type ContactLegalForm string
 
 const (
 	// ContactLegalFormLegalFormUnknown is [insert doc].
 	ContactLegalFormLegalFormUnknown = ContactLegalForm("legal_form_unknown")
-	// ContactLegalFormParticular is [insert doc].
-	ContactLegalFormParticular = ContactLegalForm("particular")
-	// ContactLegalFormSociety is [insert doc].
-	ContactLegalFormSociety = ContactLegalForm("society")
+	// ContactLegalFormIndividual is [insert doc].
+	ContactLegalFormIndividual = ContactLegalForm("individual")
+	// ContactLegalFormCorporate is [insert doc].
+	ContactLegalFormCorporate = ContactLegalForm("corporate")
 	// ContactLegalFormAssociation is [insert doc].
 	ContactLegalFormAssociation = ContactLegalForm("association")
 	// ContactLegalFormOther is [insert doc].
@@ -754,6 +786,8 @@ const (
 	RecordTypeDS = RecordType("DS")
 	// RecordTypeNAPTR is [insert doc].
 	RecordTypeNAPTR = RecordType("NAPTR")
+	// RecordTypeDNAME is [insert doc].
+	RecordTypeDNAME = RecordType("DNAME")
 )
 
 func (enum RecordType) String() string {
@@ -978,10 +1012,6 @@ type Contact struct {
 	//
 	// Default value: legal_form_unknown
 	LegalForm ContactLegalForm `json:"legal_form"`
-	// Civility:
-	//
-	// Default value: civility_unknown
-	Civility ContactCivility `json:"civility"`
 
 	Firstname string `json:"firstname"`
 
@@ -1016,8 +1046,8 @@ type Contact struct {
 	Lang LanguageCode `json:"lang"`
 
 	Resale bool `json:"resale"`
-
-	Questions []*ContactQuestion `json:"questions"`
+	// Deprecated
+	Questions *[]*ContactQuestion `json:"questions,omitempty"`
 
 	ExtensionFr *ContactExtensionFR `json:"extension_fr"`
 
@@ -1030,6 +1060,8 @@ type Contact struct {
 	EmailStatus ContactEmailStatus `json:"email_status"`
 
 	State string `json:"state"`
+
+	ExtensionNl *ContactExtensionNL `json:"extension_nl"`
 }
 
 type ContactExtensionEU struct {
@@ -1042,44 +1074,53 @@ type ContactExtensionFR struct {
 	// Default value: mode_unknown
 	Mode ContactExtensionFRMode `json:"mode"`
 
-	// Precisely one of AssociationInfos, BrandInfos, CodeAuthAfnicInfos, DunsInfos, ParticularInfos must be set.
-	ParticularInfos *ContactExtensionFRParticularInfos `json:"particular_infos,omitempty"`
+	// Precisely one of AssociationInfo, CodeAuthAfnicInfo, DunsInfo, IndividualInfo, TrademarkInfo must be set.
+	IndividualInfo *ContactExtensionFRIndividualInfo `json:"individual_info,omitempty"`
 
-	// Precisely one of AssociationInfos, BrandInfos, CodeAuthAfnicInfos, DunsInfos, ParticularInfos must be set.
-	DunsInfos *ContactExtensionFRDunsInfos `json:"duns_infos,omitempty"`
+	// Precisely one of AssociationInfo, CodeAuthAfnicInfo, DunsInfo, IndividualInfo, TrademarkInfo must be set.
+	DunsInfo *ContactExtensionFRDunsInfo `json:"duns_info,omitempty"`
 
-	// Precisely one of AssociationInfos, BrandInfos, CodeAuthAfnicInfos, DunsInfos, ParticularInfos must be set.
-	AssociationInfos *ContactExtensionFRAssociationInfos `json:"association_infos,omitempty"`
+	// Precisely one of AssociationInfo, CodeAuthAfnicInfo, DunsInfo, IndividualInfo, TrademarkInfo must be set.
+	AssociationInfo *ContactExtensionFRAssociationInfo `json:"association_info,omitempty"`
 
-	// Precisely one of AssociationInfos, BrandInfos, CodeAuthAfnicInfos, DunsInfos, ParticularInfos must be set.
-	BrandInfos *ContactExtensionFRBrandInfos `json:"brand_infos,omitempty"`
+	// Precisely one of AssociationInfo, CodeAuthAfnicInfo, DunsInfo, IndividualInfo, TrademarkInfo must be set.
+	TrademarkInfo *ContactExtensionFRTrademarkInfo `json:"trademark_info,omitempty"`
 
-	// Precisely one of AssociationInfos, BrandInfos, CodeAuthAfnicInfos, DunsInfos, ParticularInfos must be set.
-	CodeAuthAfnicInfos *ContactExtensionFRCodeAuthAfnicInfos `json:"code_auth_afnic_infos,omitempty"`
+	// Precisely one of AssociationInfo, CodeAuthAfnicInfo, DunsInfo, IndividualInfo, TrademarkInfo must be set.
+	CodeAuthAfnicInfo *ContactExtensionFRCodeAuthAfnicInfo `json:"code_auth_afnic_info,omitempty"`
 }
 
-type ContactExtensionFRAssociationInfos struct {
+type ContactExtensionFRAssociationInfo struct {
 	PublicationJo *time.Time `json:"publication_jo"`
 
 	PublicationJoPage uint32 `json:"publication_jo_page"`
 }
 
-type ContactExtensionFRBrandInfos struct {
-	BrandInpi string `json:"brand_inpi"`
-}
-
-type ContactExtensionFRCodeAuthAfnicInfos struct {
+type ContactExtensionFRCodeAuthAfnicInfo struct {
 	CodeAuthAfnic string `json:"code_auth_afnic"`
 }
 
-type ContactExtensionFRDunsInfos struct {
+type ContactExtensionFRDunsInfo struct {
 	DunsID string `json:"duns_id"`
 
 	LocalID string `json:"local_id"`
 }
 
-type ContactExtensionFRParticularInfos struct {
+type ContactExtensionFRIndividualInfo struct {
 	WhoisOptIn bool `json:"whois_opt_in"`
+}
+
+type ContactExtensionFRTrademarkInfo struct {
+	TrademarkInpi string `json:"trademark_inpi"`
+}
+
+type ContactExtensionNL struct {
+	// LegalForm:
+	//
+	// Default value: legal_form_unknown
+	LegalForm ContactExtensionNLLegalForm `json:"legal_form"`
+
+	LegalFormRegistrationNumber string `json:"legal_form_registration_number"`
 }
 
 type ContactQuestion struct {
@@ -1151,6 +1192,8 @@ type DSRecordDigest struct {
 	Type DSRecordDigestType `json:"type"`
 
 	Digest string `json:"digest"`
+
+	PublicKey *DSRecordPublicKey `json:"public_key"`
 }
 
 type DSRecordPublicKey struct {
@@ -1407,10 +1450,6 @@ type NewContact struct {
 	//
 	// Default value: legal_form_unknown
 	LegalForm ContactLegalForm `json:"legal_form"`
-	// Civility:
-	//
-	// Default value: civility_unknown
-	Civility ContactCivility `json:"civility"`
 
 	Firstname string `json:"firstname"`
 
@@ -1445,8 +1484,8 @@ type NewContact struct {
 	Lang LanguageCode `json:"lang"`
 
 	Resale bool `json:"resale"`
-
-	Questions []*ContactQuestion `json:"questions"`
+	// Deprecated
+	Questions *[]*ContactQuestion `json:"questions,omitempty"`
 
 	ExtensionFr *ContactExtensionFR `json:"extension_fr"`
 
@@ -1455,6 +1494,8 @@ type NewContact struct {
 	WhoisOptIn bool `json:"whois_opt_in"`
 
 	State *string `json:"state"`
+
+	ExtensionNl *ContactExtensionNL `json:"extension_nl"`
 }
 
 type OrderResponse struct {
@@ -1699,6 +1740,8 @@ type Tld struct {
 	IdnSupport bool `json:"idn_support"`
 
 	Offers map[string]*TldOffer `json:"offers"`
+
+	Specifications map[string]string `json:"specifications"`
 }
 
 type TldOffer struct {
@@ -1707,6 +1750,12 @@ type TldOffer struct {
 	OperationPath string `json:"operation_path"`
 
 	Price *scw.Money `json:"price"`
+}
+
+type TransferInDomainRequestTransferRequest struct {
+	Domain string `json:"domain"`
+
+	AuthCode string `json:"auth_code"`
 }
 
 type UpdateContactRequestQuestion struct {
@@ -1971,6 +2020,8 @@ type ListDNSZoneRecordsRequest struct {
 	//
 	// Default value: unknown
 	Type RecordType `json:"-"`
+	// ID: the record ID on which to filter the returned DNS zone records
+	ID *string `json:"-"`
 }
 
 // ListDNSZoneRecords: list DNS zone records
@@ -1993,6 +2044,7 @@ func (s *API) ListDNSZoneRecords(req *ListDNSZoneRecordsRequest, opts ...scw.Req
 	parameter.AddToQuery(query, "page_size", req.PageSize)
 	parameter.AddToQuery(query, "name", req.Name)
 	parameter.AddToQuery(query, "type", req.Type)
+	parameter.AddToQuery(query, "id", req.ID)
 
 	if fmt.Sprint(req.DNSZone) == "" {
 		return nil, errors.New("field DNSZone cannot be empty in request")
@@ -2222,13 +2274,13 @@ type ImportRawDNSZoneRequest struct {
 	// DNSZone: the DNS zone to import
 	DNSZone string `json:"-"`
 	// Deprecated
-	Content string `json:"content"`
+	Content *string `json:"content,omitempty"`
 
 	ProjectID string `json:"project_id"`
 	// Deprecated: Format:
 	//
 	// Default value: unknown_raw_format
-	Format RawFormat `json:"format"`
+	Format *RawFormat `json:"format,omitempty"`
 	// BindSource: import a bind file format
 	// Precisely one of AxfrSource, BindSource must be set.
 	BindSource *ImportRawDNSZoneRequestBindSource `json:"bind_source,omitempty"`
@@ -2826,9 +2878,7 @@ func (s *RegistrarAPI) RenewDomains(req *RegistrarAPIRenewDomainsRequest, opts .
 }
 
 type RegistrarAPITransferInDomainRequest struct {
-	Domain string `json:"domain"`
-
-	AuthCode string `json:"auth_code"`
+	Domains []*TransferInDomainRequestTransferRequest `json:"domains"`
 
 	ProjectID string `json:"project_id"`
 
@@ -2865,7 +2915,7 @@ func (s *RegistrarAPI) TransferInDomain(req *RegistrarAPITransferInDomainRequest
 
 	scwReq := &scw.ScalewayRequest{
 		Method:  "POST",
-		Path:    "/domain/v2beta1/domains/domain-transfers",
+		Path:    "/domain/v2beta1/domains/transfer-domains",
 		Headers: http.Header{},
 	}
 
@@ -3104,8 +3154,8 @@ type RegistrarAPIUpdateContactRequest struct {
 	Lang LanguageCode `json:"lang"`
 
 	Resale *bool `json:"resale"`
-
-	Questions []*UpdateContactRequestQuestion `json:"questions"`
+	// Deprecated
+	Questions *[]*UpdateContactRequestQuestion `json:"questions,omitempty"`
 
 	ExtensionFr *ContactExtensionFR `json:"extension_fr"`
 
@@ -3114,6 +3164,8 @@ type RegistrarAPIUpdateContactRequest struct {
 	WhoisOptIn *bool `json:"whois_opt_in"`
 
 	State *string `json:"state"`
+
+	ExtensionNl *ContactExtensionNL `json:"extension_nl"`
 }
 
 // UpdateContact: update contact

@@ -3,6 +3,8 @@ package scaleway
 import (
 	"bytes"
 	"fmt"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	kopsv "k8s.io/kops"
@@ -11,12 +13,12 @@ import (
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/cloudinstances"
 	"k8s.io/kops/upup/pkg/fi"
-	"strings"
 
 	account "github.com/scaleway/scaleway-sdk-go/api/account/v2alpha1"
 	domain "github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/lb/v1"
+	"github.com/scaleway/scaleway-sdk-go/api/vpc/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 )
 
@@ -40,9 +42,10 @@ type ScwCloud interface {
 	DNS() (dnsprovider.Interface, error)
 
 	AccountService() *account.API
+	DomainService() *domain.API
 	InstanceService() *instance.API
 	LBService() *lb.API
-	DomainService() *domain.API
+	VPCService() *vpc.API
 
 	GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error)
 	FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error)
@@ -67,9 +70,10 @@ type scwCloudImplementation struct {
 	tags       map[string]string
 
 	accountAPI  *account.API
+	domainAPI   *domain.API
 	instanceAPI *instance.API
 	lbAPI       *lb.API
-	domainAPI   *domain.API
+	vpcAPI      *vpc.API
 }
 
 // NewScwCloud returns a Cloud, using the env vars SCW_ACCESS_KEY and SCW_SECRET_KEY
@@ -123,9 +127,10 @@ func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) 
 		zone:        zone,
 		tags:        tags,
 		accountAPI:  account.NewAPI(scwClient),
+		domainAPI:   domain.NewAPI(scwClient),
 		instanceAPI: instance.NewAPI(scwClient),
 		lbAPI:       lb.NewAPI(scwClient),
-		domainAPI:   domain.NewAPI(scwClient),
+		vpcAPI:      vpc.NewAPI(scwClient),
 	}, nil
 }
 
@@ -154,6 +159,10 @@ func (s *scwCloudImplementation) AccountService() *account.API {
 	return s.accountAPI
 }
 
+func (s *scwCloudImplementation) DomainService() *domain.API {
+	return s.domainAPI
+}
+
 func (s *scwCloudImplementation) InstanceService() *instance.API {
 	return s.instanceAPI
 }
@@ -162,8 +171,8 @@ func (s *scwCloudImplementation) LBService() *lb.API {
 	return s.lbAPI
 }
 
-func (s *scwCloudImplementation) DomainService() *domain.API {
-	return s.domainAPI
+func (s *scwCloudImplementation) VPCService() *vpc.API {
+	return s.vpcAPI
 }
 
 // FindVPCInfo is not implemented yet, it's only here to satisfy the fi.Cloud interface

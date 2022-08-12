@@ -574,6 +574,8 @@ const (
 	SnapshotStateSnapshotting = SnapshotState("snapshotting")
 	// SnapshotStateError is [insert doc].
 	SnapshotStateError = SnapshotState("error")
+	// SnapshotStateInvalidData is [insert doc].
+	SnapshotStateInvalidData = SnapshotState("invalid_data")
 )
 
 func (enum SnapshotState) String() string {
@@ -596,6 +598,42 @@ func (enum *SnapshotState) UnmarshalJSON(data []byte) error {
 	}
 
 	*enum = SnapshotState(SnapshotState(tmp).String())
+	return nil
+}
+
+type SnapshotVolumeType string
+
+const (
+	// SnapshotVolumeTypeUnknownVolumeType is [insert doc].
+	SnapshotVolumeTypeUnknownVolumeType = SnapshotVolumeType("unknown_volume_type")
+	// SnapshotVolumeTypeLSSD is [insert doc].
+	SnapshotVolumeTypeLSSD = SnapshotVolumeType("l_ssd")
+	// SnapshotVolumeTypeBSSD is [insert doc].
+	SnapshotVolumeTypeBSSD = SnapshotVolumeType("b_ssd")
+	// SnapshotVolumeTypeUnified is [insert doc].
+	SnapshotVolumeTypeUnified = SnapshotVolumeType("unified")
+)
+
+func (enum SnapshotVolumeType) String() string {
+	if enum == "" {
+		// return default value if empty
+		return "unknown_volume_type"
+	}
+	return string(enum)
+}
+
+func (enum SnapshotVolumeType) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, enum)), nil
+}
+
+func (enum *SnapshotVolumeType) UnmarshalJSON(data []byte) error {
+	tmp := ""
+
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+
+	*enum = SnapshotVolumeType(SnapshotVolumeType(tmp).String())
 	return nil
 }
 
@@ -760,6 +798,8 @@ const (
 	VolumeVolumeTypeLSSD = VolumeVolumeType("l_ssd")
 	// VolumeVolumeTypeBSSD is [insert doc].
 	VolumeVolumeTypeBSSD = VolumeVolumeType("b_ssd")
+	// VolumeVolumeTypeUnified is [insert doc].
+	VolumeVolumeTypeUnified = VolumeVolumeType("unified")
 )
 
 func (enum VolumeVolumeType) String() string {
@@ -849,6 +889,8 @@ type CreateServerResponse struct {
 
 type CreateSnapshotResponse struct {
 	Snapshot *Snapshot `json:"snapshot"`
+
+	Task *Task `json:"task"`
 }
 
 type CreateVolumeResponse struct {
@@ -1030,7 +1072,7 @@ type ListPrivateNICsResponse struct {
 type ListSecurityGroupRulesResponse struct {
 	// TotalCount: total number of security groups
 	TotalCount uint32 `json:"total_count"`
-	// Rules: list of security groups
+	// Rules: list of security rules
 	Rules []*SecurityGroupRule `json:"rules"`
 }
 
@@ -1169,7 +1211,7 @@ type SecurityGroup struct {
 	// Tags: the security group tags
 	Tags []string `json:"tags"`
 	// Deprecated: OrganizationDefault: true if it is your default security group for this organization ID
-	OrganizationDefault bool `json:"organization_default"`
+	OrganizationDefault *bool `json:"organization_default,omitempty"`
 	// ProjectDefault: true if it is your default security group for this project ID
 	ProjectDefault bool `json:"project_default"`
 	// CreationDate: the security group creation date
@@ -1296,6 +1338,17 @@ type Server struct {
 	Zone scw.Zone `json:"zone"`
 }
 
+// ServerActionRequestVolumeBackupTemplate: server action request. volume backup template
+type ServerActionRequestVolumeBackupTemplate struct {
+	// VolumeType: the snapshot's volume type
+	//
+	// Overrides the volume_type of the snapshot for this volume.
+	// If omitted, the volume type of the original volume will be used.
+	//
+	// Default value: unknown_volume_type
+	VolumeType SnapshotVolumeType `json:"volume_type,omitempty"`
+}
+
 type ServerActionResponse struct {
 	Task *Task `json:"task"`
 }
@@ -1344,7 +1397,7 @@ type ServerSummary struct {
 // ServerType: server type
 type ServerType struct {
 	// Deprecated: MonthlyPrice: estimated monthly price, for a 30 days month, in Euro
-	MonthlyPrice float32 `json:"monthly_price"`
+	MonthlyPrice *float32 `json:"monthly_price,omitempty"`
 	// HourlyPrice: hourly price in Euro
 	HourlyPrice float32 `json:"hourly_price"`
 	// AltNames: alternative instance name if any
@@ -1409,6 +1462,40 @@ type SetPlacementGroupResponse struct {
 
 type SetPlacementGroupServersResponse struct {
 	Servers []*PlacementGroupServer `json:"servers"`
+}
+
+// SetSecurityGroupRulesRequestRule: set security group rules request. rule
+type SetSecurityGroupRulesRequestRule struct {
+	// ID: UUID of the security rule to update. If no value is provided, a new rule will be created
+	ID *string `json:"id"`
+	// Action: action to apply when the rule matches a packet
+	//
+	// Default value: accept
+	Action SecurityGroupRuleAction `json:"action"`
+	// Protocol: protocol family this rule applies to
+	//
+	// Default value: TCP
+	Protocol SecurityGroupRuleProtocol `json:"protocol"`
+	// Direction: direction the rule applies to
+	//
+	// Default value: inbound
+	Direction SecurityGroupRuleDirection `json:"direction"`
+	// IPRange: the range of IP address this rules applies to
+	IPRange scw.IPNet `json:"ip_range"`
+	// DestPortFrom: beginning of the range of ports this rule applies to (inclusive). This value will be set to null if protocol is ICMP or ANY
+	DestPortFrom *uint32 `json:"dest_port_from"`
+	// DestPortTo: end of the range of ports this rule applies to (inclusive). This value will be set to null if protocol is ICMP or ANY, or if it is equal to dest_port_from
+	DestPortTo *uint32 `json:"dest_port_to"`
+	// Position: position of this rule in the security group rules list. If several rules are passed with the same position, the resulting order is undefined
+	Position uint32 `json:"position"`
+	// Editable: indicates if this rule is editable. Rules with the value false will be ignored
+	Editable *bool `json:"editable"`
+	// Zone: zone of the rule. This field is ignored
+	Zone scw.Zone `json:"zone"`
+}
+
+type SetSecurityGroupRulesResponse struct {
+	Rules []*SecurityGroupRule `json:"rules"`
 }
 
 // Snapshot: snapshot
@@ -1501,8 +1588,8 @@ type Volume struct {
 	ID string `json:"id"`
 	// Name: the volume name
 	Name string `json:"name"`
-	// ExportURI: show the volume NBD export URI
-	ExportURI string `json:"export_uri"`
+	// Deprecated: ExportURI: show the volume NBD export URI
+	ExportURI *string `json:"export_uri"`
 	// Size: the volume disk size
 	Size scw.Size `json:"size"`
 	// VolumeType: the volume type
@@ -1571,12 +1658,18 @@ type VolumeServerTemplate struct {
 	Boot bool `json:"boot,omitempty"`
 	// Name: name of the volume
 	Name string `json:"name,omitempty"`
-	// Size: disk size of the volume
+	// Size: disk size of the volume, must be a multiple of 512
 	Size scw.Size `json:"size,omitempty"`
 	// VolumeType: type of the volume
 	//
 	// Default value: l_ssd
 	VolumeType VolumeVolumeType `json:"volume_type,omitempty"`
+	// BaseSnapshot: the ID of the snapshot on which this volume will be based
+	BaseSnapshot string `json:"base_snapshot,omitempty"`
+	// Organization: organization ID of the volume
+	Organization string `json:"organization,omitempty"`
+	// Project: project ID of the volume
+	Project string `json:"project,omitempty"`
 }
 
 type VolumeSummary struct {
@@ -1597,7 +1690,7 @@ type VolumeTemplate struct {
 	ID string `json:"id,omitempty"`
 	// Name: name of the volume
 	Name string `json:"name,omitempty"`
-	// Size: disk size of the volume
+	// Size: disk size of the volume, must be a multiple of 512
 	Size scw.Size `json:"size,omitempty"`
 	// VolumeType: type of the volume
 	//
@@ -1657,6 +1750,9 @@ type setSnapshotResponse struct {
 // Service API
 
 type GetServerTypesAvailabilityRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	PerPage *uint32 `json:"-"`
@@ -1666,7 +1762,7 @@ type GetServerTypesAvailabilityRequest struct {
 
 // GetServerTypesAvailability: get availability
 //
-// Get availibility for all server types.
+// Get availability for all server types.
 func (s *API) GetServerTypesAvailability(req *GetServerTypesAvailabilityRequest, opts ...scw.RequestOption) (*GetServerTypesAvailabilityResponse, error) {
 	var err error
 
@@ -1705,6 +1801,9 @@ func (s *API) GetServerTypesAvailability(req *GetServerTypesAvailabilityRequest,
 }
 
 type ListServersTypesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	PerPage *uint32 `json:"-"`
@@ -1753,6 +1852,9 @@ func (s *API) ListServersTypes(req *ListServersTypesRequest, opts ...scw.Request
 }
 
 type ListVolumesTypesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	PerPage *uint32 `json:"-"`
@@ -1801,6 +1903,9 @@ func (s *API) ListVolumesTypes(req *ListVolumesTypesRequest, opts ...scw.Request
 }
 
 type ListServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// PerPage: a positive integer lower or equal to 100 to select the number of items to return
 	//
@@ -1885,6 +1990,9 @@ func (s *API) ListServers(req *ListServersRequest, opts ...scw.RequestOption) (*
 }
 
 type CreateServerRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: the server name
 	Name string `json:"name,omitempty"`
@@ -1921,6 +2029,26 @@ type CreateServerRequest struct {
 }
 
 // createServer: create a server
+//
+// The `volumes` key is a dictionary composed of the volume position as key and the volume parameters as value.
+// Depending of the volume parameters, you can achieve different behaviours :
+//
+// Create a volume from a snapshot of an image :
+// Optional : `volume_type`, `size`, `boot`.
+// If the `size` parameter is not set, the size of the volume will equal the size of the corresponding snapshot of the image.
+//
+// Attach an existing volume :
+// Required : `id`, `name`.
+// Optional : `boot`.
+//
+// Create an empty volume :
+// Required : `name`, `volume_type`, `size`.
+// Optional : `organization`, `project`, `boot`.
+//
+// Create a volume from a snapshot :
+// Required : `base_snapshot`, `name`, `volume_type`.
+// Optional : `organization`, `project`, `boot`.
+//
 func (s *API) createServer(req *CreateServerRequest, opts ...scw.RequestOption) (*CreateServerResponse, error) {
 	var err error
 
@@ -1968,6 +2096,9 @@ func (s *API) createServer(req *CreateServerRequest, opts ...scw.RequestOption) 
 }
 
 type DeleteServerRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ServerID string `json:"-"`
@@ -2006,6 +2137,9 @@ func (s *API) DeleteServer(req *DeleteServerRequest, opts ...scw.RequestOption) 
 }
 
 type GetServerRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ServerID: UUID of the server you want to get
 	ServerID string `json:"-"`
@@ -2046,6 +2180,9 @@ func (s *API) GetServer(req *GetServerRequest, opts ...scw.RequestOption) (*GetS
 }
 
 type setServerRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ID: the server unique ID
 	ID string `json:"-"`
@@ -2158,6 +2295,9 @@ func (s *API) setServer(req *setServerRequest, opts ...scw.RequestOption) (*setS
 }
 
 type UpdateServerRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ServerID: UUID of the server
 	ServerID string `json:"-"`
@@ -2225,6 +2365,9 @@ func (s *API) updateServer(req *UpdateServerRequest, opts ...scw.RequestOption) 
 }
 
 type ListServerActionsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ServerID string `json:"-"`
@@ -2232,7 +2375,7 @@ type ListServerActionsRequest struct {
 
 // ListServerActions: list server actions
 //
-// Liste all actions that can currently be performed on a server.
+// List all actions that can currently be performed on a server.
 func (s *API) ListServerActions(req *ListServerActionsRequest, opts ...scw.RequestOption) (*ListServerActionsResponse, error) {
 	var err error
 
@@ -2265,6 +2408,9 @@ func (s *API) ListServerActions(req *ListServerActionsRequest, opts ...scw.Reque
 }
 
 type ServerActionRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ServerID: UUID of the server
 	ServerID string `json:"-"`
@@ -2278,6 +2424,12 @@ type ServerActionRequest struct {
 	// This field should only be specified when performing a backup action.
 	//
 	Name *string `json:"name,omitempty"`
+	// Volumes: for each volume UUID, the snapshot parameters of the volume
+	//
+	// For each volume UUID, the snapshot parameters of the volume.
+	// This field should only be specified when performing a backup action.
+	//
+	Volumes map[string]*ServerActionRequestVolumeBackupTemplate `json:"volumes,omitempty"`
 }
 
 // ServerAction: perform action
@@ -2320,6 +2472,9 @@ func (s *API) ServerAction(req *ServerActionRequest, opts ...scw.RequestOption) 
 }
 
 type ListServerUserDataRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ServerID: UUID of the server
 	ServerID string `json:"-"`
@@ -2360,6 +2515,9 @@ func (s *API) ListServerUserData(req *ListServerUserDataRequest, opts ...scw.Req
 }
 
 type DeleteServerUserDataRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ServerID: UUID of the server
 	ServerID string `json:"-"`
@@ -2404,6 +2562,9 @@ func (s *API) DeleteServerUserData(req *DeleteServerUserDataRequest, opts ...scw
 }
 
 type ListImagesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	Organization *string `json:"-"`
@@ -2470,6 +2631,9 @@ func (s *API) ListImages(req *ListImagesRequest, opts ...scw.RequestOption) (*Li
 }
 
 type GetImageRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ImageID: UUID of the image you want to get
 	ImageID string `json:"-"`
@@ -2510,6 +2674,9 @@ func (s *API) GetImage(req *GetImageRequest, opts ...scw.RequestOption) (*GetIma
 }
 
 type CreateImageRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: name of the image
 	Name string `json:"name,omitempty"`
@@ -2583,6 +2750,9 @@ func (s *API) CreateImage(req *CreateImageRequest, opts ...scw.RequestOption) (*
 }
 
 type SetImageRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ID string `json:"-"`
@@ -2668,6 +2838,9 @@ func (s *API) setImage(req *SetImageRequest, opts ...scw.RequestOption) (*setIma
 }
 
 type DeleteImageRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ImageID: UUID of the image you want to delete
 	ImageID string `json:"-"`
@@ -2706,6 +2879,9 @@ func (s *API) DeleteImage(req *DeleteImageRequest, opts ...scw.RequestOption) er
 }
 
 type ListSnapshotsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	Organization *string `json:"-"`
@@ -2764,6 +2940,9 @@ func (s *API) ListSnapshots(req *ListSnapshotsRequest, opts ...scw.RequestOption
 }
 
 type CreateSnapshotRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: name of the snapshot
 	Name string `json:"name,omitempty"`
@@ -2777,6 +2956,13 @@ type CreateSnapshotRequest struct {
 	// Project: project ID of the snapshot
 	// Precisely one of Organization, Project must be set.
 	Project *string `json:"project,omitempty"`
+	// VolumeType: the volume type of the snapshot
+	//
+	// Overrides the volume_type of the snapshot.
+	// If omitted, the volume type of the original volume will be used.
+	//
+	// Default value: unknown_volume_type
+	VolumeType SnapshotVolumeType `json:"volume_type"`
 }
 
 // CreateSnapshot: create a snapshot from a given volume
@@ -2827,6 +3013,9 @@ func (s *API) CreateSnapshot(req *CreateSnapshotRequest, opts ...scw.RequestOpti
 }
 
 type GetSnapshotRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SnapshotID: UUID of the snapshot you want to get
 	SnapshotID string `json:"-"`
@@ -2867,6 +3056,9 @@ func (s *API) GetSnapshot(req *GetSnapshotRequest, opts ...scw.RequestOption) (*
 }
 
 type setSnapshotRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	SnapshotID string `json:"-"`
@@ -2948,6 +3140,9 @@ func (s *API) setSnapshot(req *setSnapshotRequest, opts ...scw.RequestOption) (*
 }
 
 type DeleteSnapshotRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SnapshotID: UUID of the snapshot you want to delete
 	SnapshotID string `json:"-"`
@@ -2986,6 +3181,9 @@ func (s *API) DeleteSnapshot(req *DeleteSnapshotRequest, opts ...scw.RequestOpti
 }
 
 type ListVolumesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// VolumeType: filter by volume type
 	//
@@ -3053,6 +3251,9 @@ func (s *API) ListVolumes(req *ListVolumesRequest, opts ...scw.RequestOption) (*
 }
 
 type CreateVolumeRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: the volume name
 	Name string `json:"name,omitempty"`
@@ -3068,7 +3269,7 @@ type CreateVolumeRequest struct {
 	//
 	// Default value: l_ssd
 	VolumeType VolumeVolumeType `json:"volume_type"`
-	// Size: the volume disk size
+	// Size: the volume disk size, must be a multiple of 512
 	// Precisely one of BaseSnapshot, BaseVolume, Size must be set.
 	Size *scw.Size `json:"size,omitempty"`
 	// BaseVolume: the ID of the volume on which this volume will be based
@@ -3127,6 +3328,9 @@ func (s *API) CreateVolume(req *CreateVolumeRequest, opts ...scw.RequestOption) 
 }
 
 type GetVolumeRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// VolumeID: UUID of the volume you want to get
 	VolumeID string `json:"-"`
@@ -3167,6 +3371,9 @@ func (s *API) GetVolume(req *GetVolumeRequest, opts ...scw.RequestOption) (*GetV
 }
 
 type UpdateVolumeRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// VolumeID: UUID of the volume
 	VolumeID string `json:"-"`
@@ -3174,7 +3381,7 @@ type UpdateVolumeRequest struct {
 	Name *string `json:"name,omitempty"`
 	// Tags: the tags of the volume
 	Tags *[]string `json:"tags,omitempty"`
-	// Size: the volume disk size
+	// Size: the volume disk size, must be a multiple of 512
 	Size *scw.Size `json:"size,omitempty"`
 }
 
@@ -3218,6 +3425,9 @@ func (s *API) UpdateVolume(req *UpdateVolumeRequest, opts ...scw.RequestOption) 
 }
 
 type DeleteVolumeRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// VolumeID: UUID of the volume you want to delete
 	VolumeID string `json:"-"`
@@ -3256,6 +3466,9 @@ func (s *API) DeleteVolume(req *DeleteVolumeRequest, opts ...scw.RequestOption) 
 }
 
 type ListSecurityGroupsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: name of the security group
 	Name *string `json:"-"`
@@ -3265,6 +3478,8 @@ type ListSecurityGroupsRequest struct {
 	Project *string `json:"-"`
 	// Tags: list security groups with these exact tags (to filter with several tags, use commas to separate them)
 	Tags []string `json:"-"`
+	// ProjectDefault: filter security groups with this value for project_default
+	ProjectDefault *bool `json:"-"`
 	// PerPage: a positive integer lower or equal to 100 to select the number of items to return
 	//
 	// Default value: 50
@@ -3296,6 +3511,7 @@ func (s *API) ListSecurityGroups(req *ListSecurityGroupsRequest, opts ...scw.Req
 	if len(req.Tags) != 0 {
 		parameter.AddToQuery(query, "tags", strings.Join(req.Tags, ","))
 	}
+	parameter.AddToQuery(query, "project_default", req.ProjectDefault)
 	parameter.AddToQuery(query, "per_page", req.PerPage)
 	parameter.AddToQuery(query, "page", req.Page)
 
@@ -3320,6 +3536,9 @@ func (s *API) ListSecurityGroups(req *ListSecurityGroupsRequest, opts ...scw.Req
 }
 
 type CreateSecurityGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: name of the security group
 	Name string `json:"name,omitempty"`
@@ -3407,6 +3626,9 @@ func (s *API) CreateSecurityGroup(req *CreateSecurityGroupRequest, opts ...scw.R
 }
 
 type GetSecurityGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SecurityGroupID: UUID of the security group you want to get
 	SecurityGroupID string `json:"-"`
@@ -3447,6 +3669,9 @@ func (s *API) GetSecurityGroup(req *GetSecurityGroupRequest, opts ...scw.Request
 }
 
 type DeleteSecurityGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SecurityGroupID: UUID of the security group you want to delete
 	SecurityGroupID string `json:"-"`
@@ -3483,6 +3708,9 @@ func (s *API) DeleteSecurityGroup(req *DeleteSecurityGroupRequest, opts ...scw.R
 }
 
 type setSecurityGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// ID: the ID of the security group (will be ignored)
 	ID string `json:"-"`
@@ -3511,7 +3739,7 @@ type setSecurityGroupRequest struct {
 	// Project: the security group project ID
 	Project string `json:"project"`
 	// Deprecated: OrganizationDefault: please use project_default instead
-	OrganizationDefault bool `json:"organization_default"`
+	OrganizationDefault *bool `json:"organization_default"`
 	// ProjectDefault: true use this security group for future instances created in this project
 	ProjectDefault bool `json:"project_default"`
 	// Servers: the servers attached to this security group
@@ -3569,7 +3797,47 @@ func (s *API) setSecurityGroup(req *setSecurityGroupRequest, opts ...scw.Request
 	return &resp, nil
 }
 
+type ListDefaultSecurityGroupRulesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
+	Zone scw.Zone `json:"-"`
+}
+
+// ListDefaultSecurityGroupRules: get default rules
+//
+// Lists the default rules applied to all the security groups.
+func (s *API) ListDefaultSecurityGroupRules(req *ListDefaultSecurityGroupRulesRequest, opts ...scw.RequestOption) (*ListSecurityGroupRulesResponse, error) {
+	var err error
+
+	if req.Zone == "" {
+		defaultZone, _ := s.client.GetDefaultZone()
+		req.Zone = defaultZone
+	}
+
+	if fmt.Sprint(req.Zone) == "" {
+		return nil, errors.New("field Zone cannot be empty in request")
+	}
+
+	scwReq := &scw.ScalewayRequest{
+		Method:  "GET",
+		Path:    "/instance/v1/zones/" + fmt.Sprint(req.Zone) + "/security_groups/default/rules",
+		Headers: http.Header{},
+	}
+
+	var resp ListSecurityGroupRulesResponse
+
+	err = s.client.Do(scwReq, &resp, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 type ListSecurityGroupRulesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SecurityGroupID: UUID of the security group
 	SecurityGroupID string `json:"-"`
@@ -3624,6 +3892,9 @@ func (s *API) ListSecurityGroupRules(req *ListSecurityGroupRulesRequest, opts ..
 }
 
 type CreateSecurityGroupRuleRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// SecurityGroupID: UUID of the security group
 	SecurityGroupID string `json:"-"`
@@ -3641,13 +3912,13 @@ type CreateSecurityGroupRuleRequest struct {
 	Action SecurityGroupRuleAction `json:"action"`
 
 	IPRange scw.IPNet `json:"ip_range,omitempty"`
-
+	// DestPortFrom: the beginning of the range of ports to apply this rule to (inclusive)
 	DestPortFrom *uint32 `json:"dest_port_from,omitempty"`
-
+	// DestPortTo: the end of the range of ports to apply this rule to (inclusive)
 	DestPortTo *uint32 `json:"dest_port_to,omitempty"`
-
+	// Position: the position of this rule in the security group rules list
 	Position uint32 `json:"position,omitempty"`
-
+	// Editable: indicates if this rule is editable (will be ignored)
 	Editable bool `json:"editable,omitempty"`
 }
 
@@ -3688,7 +3959,60 @@ func (s *API) CreateSecurityGroupRule(req *CreateSecurityGroupRuleRequest, opts 
 	return &resp, nil
 }
 
+type SetSecurityGroupRulesRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
+	Zone scw.Zone `json:"-"`
+	// SecurityGroupID: UUID of the security group to update the rules on
+	SecurityGroupID string `json:"-"`
+	// Rules: list of rules to update in the security group
+	Rules []*SetSecurityGroupRulesRequestRule `json:"rules"`
+}
+
+// SetSecurityGroupRules: update all the rules of a security group
+//
+// Replaces the rules of the security group with the rules provided. This endpoint supports the update of existing rules, creation of new rules and deletion of existing rules when they are not passed in the request.
+func (s *API) SetSecurityGroupRules(req *SetSecurityGroupRulesRequest, opts ...scw.RequestOption) (*SetSecurityGroupRulesResponse, error) {
+	var err error
+
+	if req.Zone == "" {
+		defaultZone, _ := s.client.GetDefaultZone()
+		req.Zone = defaultZone
+	}
+
+	if fmt.Sprint(req.Zone) == "" {
+		return nil, errors.New("field Zone cannot be empty in request")
+	}
+
+	if fmt.Sprint(req.SecurityGroupID) == "" {
+		return nil, errors.New("field SecurityGroupID cannot be empty in request")
+	}
+
+	scwReq := &scw.ScalewayRequest{
+		Method:  "PUT",
+		Path:    "/instance/v1/zones/" + fmt.Sprint(req.Zone) + "/security_groups/" + fmt.Sprint(req.SecurityGroupID) + "/rules",
+		Headers: http.Header{},
+	}
+
+	err = scwReq.SetBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp SetSecurityGroupRulesResponse
+
+	err = s.client.Do(scwReq, &resp, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 type DeleteSecurityGroupRuleRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	SecurityGroupID string `json:"-"`
@@ -3733,6 +4057,9 @@ func (s *API) DeleteSecurityGroupRule(req *DeleteSecurityGroupRuleRequest, opts 
 }
 
 type GetSecurityGroupRuleRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	SecurityGroupID string `json:"-"`
@@ -3779,6 +4106,9 @@ func (s *API) GetSecurityGroupRule(req *GetSecurityGroupRuleRequest, opts ...scw
 }
 
 type setSecurityGroupRuleRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	SecurityGroupID string `json:"-"`
@@ -3852,6 +4182,9 @@ func (s *API) setSecurityGroupRule(req *setSecurityGroupRuleRequest, opts ...scw
 }
 
 type ListPlacementGroupsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// PerPage: a positive integer lower or equal to 100 to select the number of items to return
 	//
@@ -3916,6 +4249,9 @@ func (s *API) ListPlacementGroups(req *ListPlacementGroupsRequest, opts ...scw.R
 }
 
 type CreatePlacementGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Name: name of the placement group
 	Name string `json:"name,omitempty"`
@@ -3987,6 +4323,9 @@ func (s *API) CreatePlacementGroup(req *CreatePlacementGroupRequest, opts ...scw
 }
 
 type GetPlacementGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// PlacementGroupID: UUID of the placement group you want to get
 	PlacementGroupID string `json:"-"`
@@ -4027,6 +4366,9 @@ func (s *API) GetPlacementGroup(req *GetPlacementGroupRequest, opts ...scw.Reque
 }
 
 type SetPlacementGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	PlacementGroupID string `json:"-"`
@@ -4098,6 +4440,9 @@ func (s *API) SetPlacementGroup(req *SetPlacementGroupRequest, opts ...scw.Reque
 }
 
 type UpdatePlacementGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// PlacementGroupID: UUID of the placement group
 	PlacementGroupID string `json:"-"`
@@ -4155,6 +4500,9 @@ func (s *API) UpdatePlacementGroup(req *UpdatePlacementGroupRequest, opts ...scw
 }
 
 type DeletePlacementGroupRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// PlacementGroupID: UUID of the placement group you want to delete
 	PlacementGroupID string `json:"-"`
@@ -4193,6 +4541,9 @@ func (s *API) DeletePlacementGroup(req *DeletePlacementGroupRequest, opts ...scw
 }
 
 type GetPlacementGroupServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	PlacementGroupID string `json:"-"`
@@ -4233,6 +4584,9 @@ func (s *API) GetPlacementGroupServers(req *GetPlacementGroupServersRequest, opt
 }
 
 type SetPlacementGroupServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	PlacementGroupID string `json:"-"`
@@ -4280,6 +4634,9 @@ func (s *API) SetPlacementGroupServers(req *SetPlacementGroupServersRequest, opt
 }
 
 type UpdatePlacementGroupServersRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// PlacementGroupID: UUID of the placement group
 	PlacementGroupID string `json:"-"`
@@ -4327,9 +4684,16 @@ func (s *API) UpdatePlacementGroupServers(req *UpdatePlacementGroupServersReques
 }
 
 type ListIPsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
+	// Project: the project ID the IPs are reserved in
+	Project *string `json:"-"`
 	// Organization: the organization ID the IPs are reserved in
 	Organization *string `json:"-"`
+	// Tags: filter IPs with these exact tags (to filter with several tags, use commas to separate them)
+	Tags []string `json:"-"`
 	// Name: filter on the IP address (Works as a LIKE operation on the IP address)
 	Name *string `json:"-"`
 	// PerPage: a positive integer lower or equal to 100 to select the number of items to return
@@ -4338,10 +4702,6 @@ type ListIPsRequest struct {
 	PerPage *uint32 `json:"-"`
 	// Page: a positive integer to choose the page to return
 	Page *int32 `json:"-"`
-	// Project: the project ID the IPs are reserved in
-	Project *string `json:"-"`
-	// Tags: filter IPs with these exact tags (to filter with several tags, use commas to separate them)
-	Tags []string `json:"-"`
 }
 
 // ListIPs: list all flexible IPs
@@ -4359,14 +4719,14 @@ func (s *API) ListIPs(req *ListIPsRequest, opts ...scw.RequestOption) (*ListIPsR
 	}
 
 	query := url.Values{}
-	parameter.AddToQuery(query, "organization", req.Organization)
-	parameter.AddToQuery(query, "name", req.Name)
-	parameter.AddToQuery(query, "per_page", req.PerPage)
-	parameter.AddToQuery(query, "page", req.Page)
 	parameter.AddToQuery(query, "project", req.Project)
+	parameter.AddToQuery(query, "organization", req.Organization)
 	if len(req.Tags) != 0 {
 		parameter.AddToQuery(query, "tags", strings.Join(req.Tags, ","))
 	}
+	parameter.AddToQuery(query, "name", req.Name)
+	parameter.AddToQuery(query, "per_page", req.PerPage)
+	parameter.AddToQuery(query, "page", req.Page)
 
 	if fmt.Sprint(req.Zone) == "" {
 		return nil, errors.New("field Zone cannot be empty in request")
@@ -4389,6 +4749,9 @@ func (s *API) ListIPs(req *ListIPsRequest, opts ...scw.RequestOption) (*ListIPsR
 }
 
 type CreateIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// Deprecated: Organization: the organization ID the IP is reserved in
 	// Precisely one of Organization, Project must be set.
@@ -4446,6 +4809,9 @@ func (s *API) CreateIP(req *CreateIPRequest, opts ...scw.RequestOption) (*Create
 }
 
 type GetIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// IP: the IP ID or address to get
 	IP string `json:"-"`
@@ -4486,6 +4852,9 @@ func (s *API) GetIP(req *GetIPRequest, opts ...scw.RequestOption) (*GetIPRespons
 }
 
 type UpdateIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// IP: IP ID or IP address
 	IP string `json:"-"`
@@ -4535,6 +4904,9 @@ func (s *API) UpdateIP(req *UpdateIPRequest, opts ...scw.RequestOption) (*Update
 }
 
 type DeleteIPRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 	// IP: the ID or the address of the IP to delete
 	IP string `json:"-"`
@@ -4573,6 +4945,9 @@ func (s *API) DeleteIP(req *DeleteIPRequest, opts ...scw.RequestOption) error {
 }
 
 type ListPrivateNICsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ServerID string `json:"-"`
@@ -4613,6 +4988,9 @@ func (s *API) ListPrivateNICs(req *ListPrivateNICsRequest, opts ...scw.RequestOp
 }
 
 type CreatePrivateNICRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ServerID string `json:"-"`
@@ -4660,6 +5038,9 @@ func (s *API) CreatePrivateNIC(req *CreatePrivateNICRequest, opts ...scw.Request
 }
 
 type GetPrivateNICRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ServerID string `json:"-"`
@@ -4706,6 +5087,9 @@ func (s *API) GetPrivateNIC(req *GetPrivateNICRequest, opts ...scw.RequestOption
 }
 
 type DeletePrivateNICRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	ServerID string `json:"-"`
@@ -4750,6 +5134,9 @@ func (s *API) DeletePrivateNIC(req *DeletePrivateNICRequest, opts ...scw.Request
 }
 
 type ListBootscriptsRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	Arch *string `json:"-"`
@@ -4808,6 +5195,9 @@ func (s *API) ListBootscripts(req *ListBootscriptsRequest, opts ...scw.RequestOp
 }
 
 type GetBootscriptRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	BootscriptID string `json:"-"`
@@ -4848,6 +5238,9 @@ func (s *API) GetBootscript(req *GetBootscriptRequest, opts ...scw.RequestOption
 }
 
 type GetDashboardRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
 	Zone scw.Zone `json:"-"`
 
 	Organization *string `json:"-"`
