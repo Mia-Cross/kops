@@ -19,6 +19,7 @@ import (
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/lb/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/vpc/v1"
+	"github.com/scaleway/scaleway-sdk-go/api/vpcgw/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 )
 
@@ -46,6 +47,7 @@ type ScwCloud interface {
 	InstanceService() *instance.API
 	LBService() *lb.API
 	VPCService() *vpc.API
+	GatewayService() *vpcgw.API
 
 	GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error)
 	FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error)
@@ -55,6 +57,13 @@ type ScwCloud interface {
 	DetachInstance(instance *cloudinstances.CloudInstance) error
 	DeregisterInstance(instance *cloudinstances.CloudInstance) error
 	DeleteInstance(i *cloudinstances.CloudInstance) error
+
+	GetClusterGatewayNetworks(clusterName string) ([]*vpcgw.GatewayNetwork, error)
+	GetClusterGateways(clusterName string) ([]*vpcgw.Gateway, error)
+	GetClusterLoadBalancers(clusterName string) ([]*lb.LB, error)
+	GetClusterServers(clusterName string) ([]*instance.Server, error)
+	GetClusterVolumes(clusterName string) ([]*instance.Volume, error)
+	GetClusterVPCs(clusterName string) ([]*vpc.PrivateNetwork, error)
 }
 
 // static compile time check to validate ScwCloud's fi.Cloud Interface.
@@ -74,6 +83,7 @@ type scwCloudImplementation struct {
 	instanceAPI *instance.API
 	lbAPI       *lb.API
 	vpcAPI      *vpc.API
+	gatewayAPI  *vpcgw.API
 }
 
 // NewScwCloud returns a Cloud, using the env vars SCW_ACCESS_KEY and SCW_SECRET_KEY
@@ -131,6 +141,7 @@ func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) 
 		instanceAPI: instance.NewAPI(scwClient),
 		lbAPI:       lb.NewAPI(scwClient),
 		vpcAPI:      vpc.NewAPI(scwClient),
+		gatewayAPI:  vpcgw.NewAPI(scwClient),
 	}, nil
 }
 
@@ -161,6 +172,10 @@ func (s *scwCloudImplementation) AccountService() *account.API {
 
 func (s *scwCloudImplementation) DomainService() *domain.API {
 	return s.domainAPI
+}
+
+func (s *scwCloudImplementation) GatewayService() *vpcgw.API {
+	return s.gatewayAPI
 }
 
 func (s *scwCloudImplementation) InstanceService() *instance.API {
@@ -267,4 +282,72 @@ func (s *scwCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]f
 	ingresses = append(ingresses, fi.ApiIngressStatus{IP: address})
 
 	return ingresses, nil
+}
+
+func (s *scwCloudImplementation) GetClusterGatewayNetworks(clusterName string) ([]*vpcgw.GatewayNetwork, error) {
+	gws, err := s.gatewayAPI.ListGatewayNetworks(&vpcgw.ListGatewayNetworksRequest{
+		Zone:             "",
+		OrderBy:          "",
+		Page:             nil,
+		PageSize:         nil,
+		GatewayID:        nil,
+		PrivateNetworkID: nil,
+		EnableMasquerade: nil,
+		DHCPID:           nil,
+		Status:           "",
+	}, scw.WithAllPages())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list gateway networks: %s", err)
+	}
+	return gws.GatewayNetworks, nil
+}
+
+func (s *scwCloudImplementation) GetClusterGateways(clusterName string) ([]*vpcgw.Gateway, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *scwCloudImplementation) GetClusterLoadBalancers(clusterName string) ([]*lb.LB, error) {
+	loadBalancerName := "api-" + strings.Replace(clusterName, ".", "-", -1)
+	lbs, err := s.lbAPI.ListLBs(&lb.ListLBsRequest{
+		Region: scw.Region(s.region),
+		Name:   &loadBalancerName,
+	}, scw.WithAllPages())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list load-balancers: %s", err)
+	}
+	return lbs.LBs, nil
+}
+
+func (s *scwCloudImplementation) GetClusterServers(clusterName string) ([]*instance.Server, error) {
+	servers, err := s.instanceAPI.ListServers(&instance.ListServersRequest{
+		Zone: scw.Zone(s.zone),
+		Tags: []string{TagClusterName + "=" + clusterName},
+	}, scw.WithAllPages())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list servers: %s", err)
+	}
+	return servers.Servers, nil
+}
+
+func (s *scwCloudImplementation) GetClusterVolumes(clusterName string) ([]*instance.Volume, error) {
+	volumes, err := s.instanceAPI.ListVolumes(&instance.ListVolumesRequest{
+		Zone: scw.Zone(s.zone),
+		Tags: []string{TagClusterName + "=" + clusterName},
+	}, scw.WithAllPages())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list volumes: %s", err)
+	}
+	return volumes.Volumes, nil
+}
+
+func (s *scwCloudImplementation) GetClusterVPCs(clusterName string) ([]*vpc.PrivateNetwork, error) {
+	vpcs, err := s.vpcAPI.ListPrivateNetworks(&vpc.ListPrivateNetworksRequest{
+		Zone: scw.Zone(s.zone),
+		Tags: []string{TagClusterName + "=" + clusterName},
+	}, scw.WithAllPages())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list VPCs: %s", err)
+	}
+	return vpcs.PrivateNetworks, nil
 }

@@ -11,7 +11,7 @@
 
 ## Environment Variables
 
-It is important to set the following environment variables:
+It is important to set the following [environment variables](https://github.com/scaleway/scaleway-sdk-go/blob/master/scw/README.md):
 ```bash
 # this is required since Scaleway support is currently in alpha so it is feature gated
 export KOPS_FEATURE_FLAGS="Scaleway"

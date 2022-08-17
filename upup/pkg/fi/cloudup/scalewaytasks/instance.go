@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
+	"github.com/scaleway/scaleway-sdk-go/api/vpc/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 
 	"k8s.io/kops/upup/pkg/fi"
@@ -24,6 +25,7 @@ type Instance struct {
 	Tags           []string
 	Count          int
 	UserData       *fi.Resource
+	Network        *Network
 }
 
 var _ fi.Task = &Instance{}
@@ -68,6 +70,7 @@ func (d *Instance) Find(c *fi.Context) (*Instance, error) {
 		Tags:           lastServer.Tags,
 		UserData:       d.UserData, // TODO(Mia-Cross): get from instance or ignore change
 		Lifecycle:      d.Lifecycle,
+		Network:        d.Network,
 	}, nil
 }
 
@@ -106,6 +109,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 
 	for i := 0; i < newInstanceCount; i++ {
 
+		// We create the instance
 		srv, err := instanceService.CreateServer(&instance.CreateServerRequest{
 			Zone:           zone,
 			Name:           fi.StringValue(e.Name),
@@ -117,6 +121,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error creating instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
 
+		// We add the tags to the volume of the instance to be able to delete it later
 		_, err = instanceService.UpdateVolume(&instance.UpdateVolumeRequest{
 			Zone:     zone,
 			VolumeID: srv.Server.Volumes["0"].ID,
@@ -126,10 +131,8 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error addings tags to volume for instance %s: %s", fi.StringValue(e.Name), err)
 		}
 
-		_ = srv.Server.ID
-		_ = userData // TODO(jtherin): !!!
-
-		err = cloud.InstanceService().SetServerUserData(&instance.SetServerUserDataRequest{
+		// We load the cloudinit script in the instance user data
+		err = instanceService.SetServerUserData(&instance.SetServerUserDataRequest{
 			ServerID: srv.Server.ID,
 			Zone:     srv.Server.Zone,
 			Key:      "cloud-init",
@@ -139,6 +142,28 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error setting 'cloud-init' in user-data: %s", err)
 		}
 
+		// We put the instance inside the private network
+		pn, err := cloud.VPCService().ListPrivateNetworks(&vpc.ListPrivateNetworksRequest{
+			Zone: zone,
+			Name: scw.StringPtr(c.Cluster.Name),
+			//Tags:           []string{scaleway.TagClusterName + "=" + clusterName},
+		})
+		if err != nil {
+			return fmt.Errorf("error listing private networks: %v", err)
+		}
+		if pn.TotalCount != 1 {
+			return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
+		}
+		_, err = instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
+			Zone:             zone,
+			ServerID:         srv.Server.ID,
+			PrivateNetworkID: pn.PrivateNetworks[0].ID,
+		})
+		if err != nil {
+			return fmt.Errorf("error linking instance to private network: %v", err)
+		}
+
+		// We start the instance
 		_, err = instanceService.ServerAction(&instance.ServerActionRequest{
 			Zone:     zone,
 			ServerID: srv.Server.ID,
@@ -148,6 +173,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error powering on instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
 
+		// We wait for the instance to be ready
 		_, err = scaleway.WaitForInstanceServer(instanceService, zone, srv.Server.ID)
 		if err != nil {
 			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)

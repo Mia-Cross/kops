@@ -25,6 +25,7 @@ func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			Count:     int(fi.Int32Value(ig.Spec.MinSize)),
 			Name:      fi.String(name),
 			Lifecycle: d.Lifecycle,
+			Network:   d.LinkToNetwork(),
 
 			// during alpha support we only allow 1 region
 			// validation for only 1 region is done at this point
@@ -39,7 +40,6 @@ func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 		userData, err := d.BootstrapScriptBuilder.ResourceNodeUp(c, ig)
 		if err != nil {
-
 			return err
 		}
 		instance.UserData = &userData
