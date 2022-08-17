@@ -2,11 +2,13 @@ package scaleway
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/scaleway/scaleway-sdk-go/api/vpc/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/resources"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
-	"strings"
 
 	domain "github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
@@ -15,10 +17,13 @@ import (
 )
 
 const (
+	resourceTypeDHCP         = "dhcp"
 	resourceTypeDNSRecord    = "dns-record"
+	resourceTypeGateway      = "gateway"
 	resourceTypeLoadBalancer = "load-balancer"
 	resourceTypeVolume       = "volume"
 	resourceTypeServer       = "server"
+	resourceTypeVPC          = "vpc"
 )
 
 type listFn func(fi.Cloud, string) ([]*resources.Resource, error)
@@ -28,9 +33,11 @@ func ListResources(cloud scaleway.ScwCloud, clusterName string) (map[string]*res
 
 	listFunctions := []listFn{
 		listDNSRecords,
+		listGateways,
 		listLoadBalancers,
 		listServers,
 		listVolumes,
+		listVPCs,
 	}
 
 	for _, fn := range listFunctions {
@@ -45,6 +52,43 @@ func ListResources(cloud scaleway.ScwCloud, clusterName string) (map[string]*res
 
 	return resourceTrackers, nil
 }
+
+//  TODO(Mia-Cross): That won't probably be necessary
+
+//func listDHCPs(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
+//	c := cloud.(scaleway.ScwCloud)
+//
+// TODO(Mia-Cross): Problem : can't tag DHCPs so can't select only the ones related to the cluster
+//dhcps, err := c.GatewayService().ListDHCPs(&vpcgw.ListDHCPsRequest{
+//	Zone:           scw.Zone(c.Zone()),
+//	OrderBy:        "",
+//	Page:           nil,
+//	PageSize:       nil,
+//	OrganizationID: nil,
+//	ProjectID:      nil,
+//	Address:        nil,
+//	HasAddress:     nil,
+//}, scw.WithAllPages())
+//if err != nil {
+//	return nil, fmt.Errorf("failed to list DHCPs: %s", err)
+//}
+//
+//resourceTrackers := []*resources.Resource(nil)
+//for _, loadBalancer := range lbs.LBs {
+//	resourceTracker := &resources.Resource{
+//		Name: loadBalancer.Name,
+//		ID:   loadBalancer.ID,
+//		Type: resourceTypeLoadBalancer,
+//		Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
+//			return deleteLoadBalancer(cloud, tracker)
+//		},
+//		Obj: loadBalancer,
+//	}
+//	resourceTrackers = append(resourceTrackers, resourceTracker)
+//}
+//
+//	return resourceTrackers, nil
+//}
 
 func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
@@ -87,20 +131,39 @@ func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, 
 	return resourceTrackers, nil
 }
 
-func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
+func listGateways(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
-	loadBalancerName := "api-" + strings.Replace(clusterName, ".", "-", -1)
-
-	lbs, err := c.LBService().ListLBs(&lb.ListLBsRequest{
-		Region: scw.Region(c.Region()),
-		Name:   &loadBalancerName,
-	}, scw.WithAllPages())
+	gwNetworks, err := c.GetClusterGatewayNetworks(clusterName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list load-balancers: %s", err)
+		return nil, err
 	}
 
 	resourceTrackers := []*resources.Resource(nil)
-	for _, loadBalancer := range lbs.LBs {
+	for _, gwNetwork := range gwNetworks {
+		resourceTracker := &resources.Resource{
+			Name: "gw-network-" + gwNetwork.ID,
+			ID:   gwNetwork.ID,
+			Type: resourceTypeGateway,
+			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
+				return deleteGatewayNetwork(cloud, tracker)
+			},
+			Obj: gwNetwork,
+		}
+		resourceTrackers = append(resourceTrackers, resourceTracker)
+	}
+
+	return resourceTrackers, nil
+}
+
+func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
+	c := cloud.(scaleway.ScwCloud)
+	lbs, err := c.GetClusterLoadBalancers(clusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceTrackers := []*resources.Resource(nil)
+	for _, loadBalancer := range lbs {
 		resourceTracker := &resources.Resource{
 			Name: loadBalancer.Name,
 			ID:   loadBalancer.ID,
@@ -118,22 +181,19 @@ func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resourc
 
 func listServers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
-
-	servers, err := c.InstanceService().ListServers(&instance.ListServersRequest{
-		Zone: scw.Zone(c.Zone()),
-		Tags: []string{scaleway.TagClusterName + "=" + clusterName},
-	}, scw.WithAllPages())
+	servers, err := c.GetClusterServers(clusterName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list servers: %s", err)
+		return nil, err
 	}
 
 	resourceTrackers := []*resources.Resource(nil)
-	for _, server := range servers.Servers {
+	for _, server := range servers {
 		resourceTracker := &resources.Resource{
-			Name:   server.Name,
-			ID:     server.ID,
-			Type:   resourceTypeServer,
-			Blocks: []string{resourceTypeVolume},
+			Name:    server.Name,
+			ID:      server.ID,
+			Type:    resourceTypeServer,
+			Blocks:  []string{resourceTypeVolume},
+			Blocked: []string{resourceTypeVPC},
 			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
 				return deleteServer(cloud, tracker)
 			},
@@ -147,17 +207,13 @@ func listServers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 
 func listVolumes(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
-
-	volumes, err := c.InstanceService().ListVolumes(&instance.ListVolumesRequest{
-		Zone: scw.Zone(c.Zone()),
-		Tags: []string{scaleway.TagClusterName + "=" + clusterName},
-	}, scw.WithAllPages())
+	volumes, err := c.GetClusterVolumes(clusterName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list volumes: %s", err)
+		return nil, err
 	}
 
 	resourceTrackers := []*resources.Resource(nil)
-	for _, volume := range volumes.Volumes {
+	for _, volume := range volumes {
 		resourceTracker := &resources.Resource{
 			Name:    volume.Name,
 			ID:      volume.ID,
@@ -167,6 +223,31 @@ func listVolumes(cloud fi.Cloud, clusterName string) ([]*resources.Resource, err
 				return deleteVolume(cloud, tracker)
 			},
 			Obj: volume,
+		}
+		resourceTrackers = append(resourceTrackers, resourceTracker)
+	}
+
+	return resourceTrackers, nil
+}
+
+func listVPCs(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
+	c := cloud.(scaleway.ScwCloud)
+	vpcs, err := c.GetClusterVPCs(clusterName)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceTrackers := []*resources.Resource(nil)
+	for _, vpc := range vpcs {
+		resourceTracker := &resources.Resource{
+			Name:   vpc.Name,
+			ID:     vpc.ID,
+			Type:   resourceTypeVPC,
+			Blocks: []string{resourceTypeServer},
+			Deleter: func(cloud fi.Cloud, tracker *resources.Resource) error {
+				return deleteVPC(cloud, tracker)
+			},
+			Obj: vpc,
 		}
 		resourceTrackers = append(resourceTrackers, resourceTracker)
 	}
@@ -191,6 +272,10 @@ func deleteRecord(cloud fi.Cloud, tracker *resources.Resource, domainName string
 	if err != nil {
 		return fmt.Errorf("failed to delete record %s: %s", tracker.Name, err)
 	}
+	return nil
+}
+
+func deleteGatewayNetwork(cloud fi.Cloud, tracker *resources.Resource) error {
 	return nil
 }
 
@@ -220,7 +305,20 @@ func deleteServer(cloud fi.Cloud, tracker *resources.Resource) error {
 	})
 	if err != nil {
 		klog.V(4).Infof("instance %s was already deleted", tracker.Name)
+		return nil
 	}
+
+	// We detach the private network
+	err = instanceService.DeletePrivateNIC(&instance.DeletePrivateNICRequest{
+		Zone:         zone,
+		ServerID:     tracker.ID,
+		PrivateNicID: srv.Server.PrivateNics[0].ID,
+	})
+	if err != nil {
+		return fmt.Errorf("delete instance %s: error detaching private network: %v", tracker.ID, err)
+	}
+
+	// If instance is running, we turn it off
 	if srv.Server.State == "running" {
 		_, err := instanceService.ServerAction(&instance.ServerActionRequest{
 			Zone:     zone,
@@ -259,6 +357,22 @@ func deleteVolume(cloud fi.Cloud, tracker *resources.Resource) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete volume %s: %s", tracker.ID, err)
+	}
+
+	return nil
+}
+
+func deleteVPC(cloud fi.Cloud, tracker *resources.Resource) error {
+	c := cloud.(scaleway.ScwCloud)
+	zone := scw.Zone(c.Zone())
+	vpcService := c.VPCService()
+
+	err := vpcService.DeletePrivateNetwork(&vpc.DeletePrivateNetworkRequest{
+		PrivateNetworkID: tracker.ID,
+		Zone:             zone,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete VPC %s: %s", tracker.ID, err)
 	}
 
 	return nil

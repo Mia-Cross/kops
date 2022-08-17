@@ -2,6 +2,7 @@ package scalewaytasks
 
 import (
 	"fmt"
+
 	"k8s.io/klog/v2"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
@@ -97,7 +98,6 @@ func (_ *Volume) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Volume) erro
 	tagArray := []string{}
 
 	for k, v := range e.Tags {
-		// Scw tags don't accept =. Separate the key and value with an ":"
 		klog.V(10).Infof("Scw - Join the volume tag - %s", fmt.Sprintf("%s=%s", k, v))
 		tagArray = append(tagArray, fmt.Sprintf("%s=%s", k, v))
 	}

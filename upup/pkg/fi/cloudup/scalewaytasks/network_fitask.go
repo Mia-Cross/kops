@@ -25,28 +25,28 @@ import (
 	"k8s.io/kops/upup/pkg/fi"
 )
 
-// VPC
+// Network
 
-var _ fi.HasLifecycle = &VPC{}
+var _ fi.HasLifecycle = &Network{}
 
 // GetLifecycle returns the Lifecycle of the object, implementing fi.HasLifecycle
-func (o *VPC) GetLifecycle() fi.Lifecycle {
+func (o *Network) GetLifecycle() fi.Lifecycle {
 	return o.Lifecycle
 }
 
 // SetLifecycle sets the Lifecycle of the object, implementing fi.SetLifecycle
-func (o *VPC) SetLifecycle(lifecycle fi.Lifecycle) {
+func (o *Network) SetLifecycle(lifecycle fi.Lifecycle) {
 	o.Lifecycle = lifecycle
 }
 
-var _ fi.HasName = &VPC{}
+var _ fi.HasName = &Network{}
 
 // GetName returns the Name of the object, implementing fi.HasName
-func (o *VPC) GetName() *string {
+func (o *Network) GetName() *string {
 	return o.Name
 }
 
 // String is the stringer function for the task, producing readable output using fi.TaskAsString
-func (o *VPC) String() string {
+func (o *Network) String() string {
 	return fi.TaskAsString(o)
 }
