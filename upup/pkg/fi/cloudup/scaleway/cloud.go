@@ -284,27 +284,26 @@ func (s *scwCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]f
 	return ingresses, nil
 }
 
-func (s *scwCloudImplementation) GetClusterGatewayNetworks(clusterName string) ([]*vpcgw.GatewayNetwork, error) {
-	gws, err := s.gatewayAPI.ListGatewayNetworks(&vpcgw.ListGatewayNetworksRequest{
-		Zone:             "",
-		OrderBy:          "",
-		Page:             nil,
-		PageSize:         nil,
-		GatewayID:        nil,
-		PrivateNetworkID: nil,
-		EnableMasquerade: nil,
-		DHCPID:           nil,
-		Status:           "",
+func (s *scwCloudImplementation) GetClusterGatewayNetworks(privateNetworkID string) ([]*vpcgw.GatewayNetwork, error) {
+	gwNetworks, err := s.gatewayAPI.ListGatewayNetworks(&vpcgw.ListGatewayNetworksRequest{
+		Zone:             scw.Zone(s.zone),
+		PrivateNetworkID: scw.StringPtr(privateNetworkID),
 	}, scw.WithAllPages())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list gateway networks: %s", err)
 	}
-	return gws.GatewayNetworks, nil
+	return gwNetworks.GatewayNetworks, nil
 }
 
 func (s *scwCloudImplementation) GetClusterGateways(clusterName string) ([]*vpcgw.Gateway, error) {
-	//TODO implement me
-	panic("implement me")
+	gws, err := s.gatewayAPI.ListGateways(&vpcgw.ListGatewaysRequest{
+		Zone: scw.Zone(s.zone),
+		Tags: []string{TagClusterName + "=" + clusterName},
+	}, scw.WithAllPages())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list gateway networks: %s", err)
+	}
+	return gws.Gateways, nil
 }
 
 func (s *scwCloudImplementation) GetClusterLoadBalancers(clusterName string) ([]*lb.LB, error) {
