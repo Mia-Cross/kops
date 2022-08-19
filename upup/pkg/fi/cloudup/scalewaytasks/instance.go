@@ -6,8 +6,9 @@ import (
 	"fmt"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
-	"github.com/scaleway/scaleway-sdk-go/api/vpc/v1"
+	"github.com/scaleway/scaleway-sdk-go/api/vpcgw/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
+	"k8s.io/klog/v2"
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
@@ -107,6 +108,14 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	instanceService := cloud.InstanceService()
 	zone := scw.Zone(fi.StringValue(e.Zone))
 
+	pn, err := cloud.GetClusterVPCs(c.Cluster.Name)
+	if err != nil {
+		return fmt.Errorf("error listing private networks: %v", err)
+	}
+	if len(pn) != 1 {
+		return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
+	}
+
 	for i := 0; i < newInstanceCount; i++ {
 
 		// We create the instance
@@ -131,7 +140,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error addings tags to volume for instance %s: %s", fi.StringValue(e.Name), err)
 		}
 
-		// We load the cloudinit script in the instance user data
+		// We load the cloud-init script in the instance user data
 		err = instanceService.SetServerUserData(&instance.SetServerUserDataRequest{
 			ServerID: srv.Server.ID,
 			Zone:     srv.Server.Zone,
@@ -143,21 +152,10 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		}
 
 		// We put the instance inside the private network
-		pn, err := cloud.VPCService().ListPrivateNetworks(&vpc.ListPrivateNetworksRequest{
-			Zone: zone,
-			Name: scw.StringPtr(c.Cluster.Name),
-			//Tags:           []string{scaleway.TagClusterName + "=" + clusterName},
-		})
-		if err != nil {
-			return fmt.Errorf("error listing private networks: %v", err)
-		}
-		if pn.TotalCount != 1 {
-			return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
-		}
 		_, err = instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
 			Zone:             zone,
 			ServerID:         srv.Server.ID,
-			PrivateNetworkID: pn.PrivateNetworks[0].ID,
+			PrivateNetworkID: pn[0].ID,
 		})
 		if err != nil {
 			return fmt.Errorf("error linking instance to private network: %v", err)
@@ -178,7 +176,49 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		if err != nil {
 			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
+	}
 
+	gwService := cloud.GatewayService()
+	rules := []*vpcgw.SetPATRulesRequestRule(nil)
+	port := uint32(2022)
+
+	// We create NAT rules linking the gateway to our instances in order to be able to connect via SSH
+	// TODO(Mia-Cross): This part is for dev purposes only, remove when done
+	gwNetwork, err := cloud.GetClusterGatewayNetworks(pn[0].ID)
+	if err != nil {
+		return err
+	}
+	if len(gwNetwork) < 1 {
+		klog.V(4).Infof("Could not find any gateway connexion, skipping NAT rules creation")
+	} else {
+		//if len(gwNetwork) > 1 {
+		//	klog.V(4).Infof("Found multiple gateway networks, proceeding with first one (id=%s)", gwNetwork[0].ID)
+		//}
+		entries, err := gwService.ListDHCPEntries(&vpcgw.ListDHCPEntriesRequest{
+			Zone:             zone,
+			GatewayNetworkID: scw.StringPtr(gwNetwork[0].ID),
+		}, scw.WithAllPages())
+		if err != nil {
+			return fmt.Errorf("error listing DHCP entries")
+		}
+		for _, entry := range entries.DHCPEntries {
+			rules = append(rules, &vpcgw.SetPATRulesRequestRule{
+				PublicPort:  port,
+				PrivateIP:   entry.IPAddress,
+				PrivatePort: 22,
+				Protocol:    "both",
+			})
+			port += 1
+		}
+
+		_, err = gwService.SetPATRules(&vpcgw.SetPATRulesRequest{
+			Zone:      zone,
+			GatewayID: gwNetwork[0].GatewayID,
+			PatRules:  rules,
+		})
+		if err != nil {
+			return fmt.Errorf("error setting PAT rules for gateway")
+		}
 	}
 	return nil
 }

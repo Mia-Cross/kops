@@ -20,6 +20,9 @@ type Network struct {
 	IPRange   *string
 	Zone      *string
 	Tags      []string
+	//DHCP      vpcgw.DHCP
+	//Gateway   vpcgw.Gateway
+	//Connexion
 }
 
 var _ fi.CompareWithID = &Network{}
@@ -92,6 +95,7 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 	vpcService := t.Cloud.VPCService()
 	gwService := t.Cloud.GatewayService()
 
+	// We create a private network
 	pn, err := vpcService.CreatePrivateNetwork(&vpc.CreatePrivateNetworkRequest{
 		Zone:      scw.Zone(fi.StringValue(e.Zone)),
 		Name:      fi.StringValue(e.Name),
@@ -102,6 +106,7 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 		return fmt.Errorf("error rendering network: %s", err)
 	}
 
+	// We create a public gateway
 	gw, err := gwService.CreateGateway(&vpcgw.CreateGatewayRequest{
 		Zone:               scw.Zone(fi.StringValue(e.Zone)),
 		ProjectID:          os.Getenv("SCW_DEFAULT_PROJECT_ID"),
@@ -112,17 +117,18 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 		IPID:               nil,
 		EnableSMTP:         false,
 		EnableBastion:      true,
-		BastionPort:        scw.Uint32Ptr(1042),
+		BastionPort:        scw.Uint32Ptr(1042), // TODO(Mia-Cross): drop the bastion if it doesn't work ??
 	})
 	if err != nil {
 		return fmt.Errorf("error rendering gateway: %s", err)
 	}
 
-	_, subnet, err := net.ParseCIDR("192.168.1.0/24")
+	_, subnet, err := net.ParseCIDR(fi.StringValue(e.IPRange))
 	if err != nil {
 		return fmt.Errorf("error parsing CIDR: %s", err)
 	}
 
+	// We create a DHCP server
 	dhcp, err := gwService.CreateDHCP(&vpcgw.CreateDHCPRequest{
 		Zone:               scw.Zone(fi.StringValue(e.Zone)),
 		ProjectID:          os.Getenv("SCW_DEFAULT_PROJECT_ID"),
@@ -144,6 +150,7 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 		return fmt.Errorf("error rendering DHCP: %v", err)
 	}
 
+	// We link the gateway (with DHCP) to the private network once it's in a stable state
 	_, err = gwService.WaitForGateway(&vpcgw.WaitForGatewayRequest{
 		GatewayID: gw.ID,
 		Zone:      scw.Zone(fi.StringValue(e.Zone)),
@@ -151,7 +158,6 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 	if err != nil {
 		return fmt.Errorf("error waiting for gateway: %v", err)
 	}
-
 	_, err = gwService.CreateGatewayNetwork(&vpcgw.CreateGatewayNetworkRequest{
 		Zone:             scw.Zone(fi.StringValue(e.Zone)),
 		GatewayID:        gw.ID,
