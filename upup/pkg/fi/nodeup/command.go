@@ -204,22 +204,11 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	configAssets := nodeupConfig.Assets[architecture]
 	assetStore := fi.NewAssetStore(c.CacheDir)
 	for _, asset := range configAssets {
+		// TODO(Mia-Cross): remove this print later
 		fmt.Printf("***** adding asset [%s]", asset)
-		// The following part overrides the default path of the protokube executable (downloaded from artifacts.k8s.io)
-		// TODO(Mia-Cross): remove this when protokube is updated with Scaleway support
-
-		if strings.Contains(asset, "protokube") {
-			path := fmt.Sprintf("https://s3.fr-par.scw.cloud/kops-state-store-test/dist/linux/%s/protokube", architecture)
-			err = assetStore.Add(path)
-			if err != nil {
-				return fmt.Errorf("error adding asset %q: %v", path, err)
-			}
-
-		} else {
-			err := assetStore.Add(asset)
-			if err != nil {
-				return fmt.Errorf("error adding asset %q: %v", asset, err)
-			}
+		err := assetStore.Add(asset)
+		if err != nil {
+			return fmt.Errorf("error adding asset %q: %v", asset, err)
 		}
 	}
 

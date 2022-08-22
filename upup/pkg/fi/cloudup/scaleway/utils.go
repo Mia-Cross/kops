@@ -1,21 +1,15 @@
 package scaleway
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
-	"k8s.io/kops/pkg/apis/kops"
-	"k8s.io/kops/util/pkg/hashing"
-
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
+	"k8s.io/kops/pkg/apis/kops"
 )
 
 const (
@@ -148,40 +142,4 @@ func parseZonedID(zonedID string) (zone scw.Zone, id string, err error) {
 	id = tab[1]
 	zone, err = scw.ParseZone(locality)
 	return zone, id, err
-}
-
-// TODO(Mia-Cross): temporary function, remove when not needed anymore
-func GenerateHash(path string) *hashing.Hash {
-	file, err := os.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	buf := make([]byte, 30*1024)
-	sha256 := sha256.New()
-	for {
-		n, err := file.Read(buf)
-		if n > 0 {
-			_, err := sha256.Write(buf[:n])
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			log.Printf("Read %d bytes: %v", n, err)
-			break
-		}
-	}
-
-	sum := sha256.Sum(nil)
-	return &hashing.Hash{
-		Algorithm: "SHA256",
-		HashValue: sum,
-	}
 }

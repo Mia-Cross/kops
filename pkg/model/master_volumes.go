@@ -384,11 +384,16 @@ func (b *MasterVolumeBuilder) addAzureVolume(
 }
 
 func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
-	tags := make(map[string]string)
-	tags[scaleway.TagClusterName] = b.Cluster.ObjectMeta.Name
-	tags[scaleway.TagNameEtcdClusterPrefix+etcd.Name] = m.Name
-	tags[scaleway.TagInstanceGroup] = fi.StringValue(m.InstanceGroup)
-	tags[scaleway.TagRoleVolume] = etcd.Name
+	tags := []string{
+		scaleway.TagClusterName + "=" + b.Cluster.ObjectMeta.Name,
+		scaleway.TagNameEtcdClusterPrefix + etcd.Name + "=" + m.Name,
+		//scaleway.TagInstanceGroup + "=" + fi.StringValue(m.InstanceGroup),
+		scaleway.TagRoleVolume + "=" + etcd.Name,
+
+		fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.Name),
+		scaleway.TagNameEtcdClusterPrefix + etcd.Name, // originally was etcdCluster.Name
+		scaleway.TagNameRolePrefix + "master=1",
+	}
 
 	t := &scalewaytasks.Volume{
 		Name:      fi.String(name),

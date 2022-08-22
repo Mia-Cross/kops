@@ -337,13 +337,6 @@ func (b *BootstrapScript) Run(c *fi.Context) error {
 	var nodeupScript resources.NodeUpScript
 	nodeupScript.NodeUpAssets = b.builder.NodeUpAssets
 
-	// The following part overrides the default path of the nodeup executable (downloaded from artifacts.k8s.io)
-	// TODO(Mia-Cross): remove this when nodeup is updated with Scaleway support
-	nodeupScript.NodeUpAssets["arm64"].Locations = []string{"https://s3.fr-par.scw.cloud/kops-state-store-test/dist/linux/arm64/nodeup"}
-	nodeupScript.NodeUpAssets["amd64"].Locations = []string{"https://s3.fr-par.scw.cloud/kops-state-store-test/dist/linux/amd64/nodeup"}
-	nodeupScript.NodeUpAssets["arm64"].Hash = scaleway.GenerateHash(".build/dist/linux/arm64/nodeup")
-	nodeupScript.NodeUpAssets["amd64"].Hash = scaleway.GenerateHash(".build/dist/linux/amd64/nodeup")
-
 	nodeupScript.KubeEnv = config
 
 	{
