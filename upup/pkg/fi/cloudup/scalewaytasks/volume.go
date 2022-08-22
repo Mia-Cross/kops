@@ -1,9 +1,6 @@
 package scalewaytasks
 
 import (
-	"fmt"
-
-	"k8s.io/klog/v2"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
@@ -21,7 +18,7 @@ type Volume struct {
 	Size *int64
 	//Region *string
 	Zone *string
-	Tags map[string]string
+	Tags []string
 }
 
 var _ fi.CompareWithID = &Volume{}
@@ -95,24 +92,23 @@ func (_ *Volume) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Volume) erro
 		return nil
 	}
 
-	tagArray := []string{}
-
-	for k, v := range e.Tags {
-		klog.V(10).Infof("Scw - Join the volume tag - %s", fmt.Sprintf("%s=%s", k, v))
-		tagArray = append(tagArray, fmt.Sprintf("%s=%s", k, v))
-	}
+	//for k, v := range e.Tags {
+	//	klog.V(10).Infof("Scw - Join the volume tag - %s", fmt.Sprintf("%s=%s", k, v))
+	//	tagArray = append(tagArray, fmt.Sprintf("%s=%s", k, v))
+	//}
 
 	instanceService := t.Cloud.InstanceService()
 	_, err := instanceService.CreateVolume(&instance.CreateVolumeRequest{
 		Zone: scw.Zone(fi.StringValue(e.Zone)),
 		Name: fi.StringValue(e.Name),
 		Size: scw.SizePtr(scw.Size(fi.Int64Value(e.Size))),
-		Tags: tagArray,
+		Tags: e.Tags,
 	})
 
 	return err
 }
 
+// TODO(Mia-Cross): remove from v1
 // terraformVolume represents the scaleway_instance_volume resource in terraform
 // https://registry.terraform.io/providers/scaleway/scaleway/latest/docs/resources/instance_volume
 type terraformVolume struct {

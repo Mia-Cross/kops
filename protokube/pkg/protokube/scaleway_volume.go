@@ -25,7 +25,7 @@ var _ CloudProvider = &ScwCloudProvider{}
 
 // NewScwCloudProvider returns a new Scaleway Cloud volume provider.
 func NewScwCloudProvider() (*ScwCloudProvider, error) {
-	fmt.Println("HI, YOU'RE DEALING WITH SCALEWAY VOLUMES")
+	fmt.Println("HELLO, YOU'RE DEALING WITH SCALEWAY VOLUMES")
 	scwClient, err := scw.NewClient(
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
@@ -42,13 +42,14 @@ func NewScwCloudProvider() (*ScwCloudProvider, error) {
 
 	serverID := metadata.ID
 	klog.V(4).Infof("Found ID of the running server: %v", serverID)
+
 	zoneID := metadata.Location.ZoneID
-	klog.V(4).Infof("Found zone of the running server: %v", zoneID)
-	zone, err := formatZone(zoneID)
+	zone, err := scw.ParseZone(zoneID)
 	if err != nil {
-		return nil, fmt.Errorf("unable to format Scaleway zone: %s", err)
+		return nil, fmt.Errorf("unable to parse Scaleway zone: %s", err)
 	}
 	klog.V(4).Infof("Found zone of the running server: %v", zone)
+
 	privateIP := metadata.PrivateIP
 	klog.V(4).Infof("Found first private net IP of the running server: %q", privateIP)
 
@@ -89,23 +90,4 @@ func (s *ScwCloudProvider) GossipSeeds() (gossip.SeedProvider, error) {
 		return nil, errors.New(clusterName) // TODO(Mia-Cross): remove that !!!!
 	}
 	return nil, fmt.Errorf("failed to find cluster name label for running server: %v", s.server.Tags)
-}
-
-func formatZone(zoneID string) (scw.Zone, error) {
-	switch zoneID {
-	case "par1":
-		return scw.ZoneFrPar1, nil
-	case "par2":
-		return scw.ZoneFrPar2, nil
-	case "par3":
-		return scw.ZoneFrPar3, nil
-	case "ams1":
-		return scw.ZoneNlAms1, nil
-	case "ams2":
-		return scw.ZoneNlAms2, nil
-	case "waw1":
-		return scw.ZonePlWaw1, nil
-	default:
-		return "", fmt.Errorf("unknown zone %s", zoneID)
-	}
 }
