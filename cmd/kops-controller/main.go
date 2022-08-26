@@ -60,6 +60,8 @@ func init() {
 func main() {
 	klog.InitFlags(nil)
 
+	klog.Infof("HELLO, LAUNCHING KOPS_CONTROLLER NOW")
+
 	// Disable metrics by default (avoid port conflicts, also risky because we are host network)
 	metricsAddress := ":0"
 	// flag.StringVar(&metricsAddr, "metrics-addr", metricsAddress, "The address the metric endpoint binds to.")

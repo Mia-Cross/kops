@@ -158,7 +158,7 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 	if err != nil {
 		return fmt.Errorf("error waiting for gateway: %v", err)
 	}
-	_, err = gwService.CreateGatewayNetwork(&vpcgw.CreateGatewayNetworkRequest{
+	gwn, err := gwService.CreateGatewayNetwork(&vpcgw.CreateGatewayNetworkRequest{
 		Zone:             scw.Zone(fi.StringValue(e.Zone)),
 		GatewayID:        gw.ID,
 		PrivateNetworkID: pn.ID,
@@ -169,6 +169,13 @@ func (_ *Network) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Network) er
 	})
 	if err != nil {
 		return fmt.Errorf("error rendering gateway network with DHCP: %v", err)
+	}
+	_, err = gwService.WaitForGatewayNetwork(&vpcgw.WaitForGatewayNetworkRequest{
+		GatewayNetworkID: gwn.ID,
+		Zone:             scw.Zone(fi.StringValue(e.Zone)),
+	})
+	if err != nil {
+		return fmt.Errorf("error waiting for gateway: %v", err)
 	}
 
 	return nil

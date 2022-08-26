@@ -41,6 +41,7 @@ func FindRegionAndZone(cluster *kops.Cluster) (region, zone string, err error) {
 }
 
 func reachState(instanceAPI *instance.API, zone scw.Zone, serverID string, toState instance.ServerState) error {
+	// TODO(Mia-Cross): this function is not that useful, remove it
 	response, err := instanceAPI.GetServer(&instance.GetServerRequest{
 		Zone:     zone,
 		ServerID: serverID,
@@ -100,6 +101,7 @@ func reachState(instanceAPI *instance.API, zone scw.Zone, serverID string, toSta
 }
 
 func WaitForInstanceServer(api *instance.API, zone scw.Zone, id string) (*instance.Server, error) {
+	// TODO(Mia-Cross): this function is not that useful, replace all calls by api.WaitForServer ??
 	retryInterval := defaultInstanceWaitRetryInterval
 	timeout := defaultInstanceWaitTimeout
 

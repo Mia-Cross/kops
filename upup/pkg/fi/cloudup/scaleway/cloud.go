@@ -193,7 +193,7 @@ func (s *scwCloudImplementation) VPCService() *vpc.API {
 // FindVPCInfo is not implemented yet, it's only here to satisfy the fi.Cloud interface
 func (s *scwCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
 	klog.V(8).Info("scaleway cloud provider FindVPCInfo not implemented yet")
-	return nil, fmt.Errorf("scaleway cloud provider does not support vpc at this time")
+	return nil, fmt.Errorf("HELLO, scaleway cloud provider does not support vpc at this time")
 }
 
 func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance) error {
@@ -259,6 +259,7 @@ func (s *scwCloudImplementation) FindClusterStatus(cluster *kops.Cluster) (*kops
 }
 
 func (s *scwCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error) {
+	klog.V(4).Infof("HELLO, YOU'RE TRYING TO GET THE API INGRESS STATUS (cloud)")
 	var ingresses []fi.ApiIngressStatus
 	name := "api." + cluster.Name
 

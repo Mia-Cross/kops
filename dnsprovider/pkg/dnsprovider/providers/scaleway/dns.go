@@ -86,6 +86,7 @@ type Interface struct {
 
 // NewProvider returns an implementation of dnsprovider.Interface
 func NewProvider(client *scw.Client, parentDomain string) dnsprovider.Interface {
+	klog.Infof("HELLO, I'M A NEW DNS PROVIDER !!")
 	return &Interface{client: client, parentDomain: parentDomain}
 }
 
@@ -131,6 +132,7 @@ func (z *zones) Add(newZone dnsprovider.Zone) (dnsprovider.Zone, error) {
 		Domain:    z.parentDomain,
 	}
 
+	klog.Infof("HELLO, I WANT TO ADD A NEW ZONE (%s) !!", newZone.Name())
 	d, err := createDomain(z.client, domainCreateRequest)
 	if err != nil {
 		return nil, err
@@ -150,6 +152,7 @@ func (z *zones) Remove(zone dnsprovider.Zone) error {
 
 // New returns a new implementation of dnsprovider.Zone
 func (z *zones) New(name string) (dnsprovider.Zone, error) {
+	klog.Infof("HELLO, I'M A NEW DNS ZONE !!")
 	return &zone{
 		name:         name,
 		parentDomain: z.parentDomain,
@@ -452,12 +455,9 @@ func listDomains(c *scw.Client) ([]*domain.DNSZone, error) {
 	domains, err := api.ListDNSZones(&domain.ListDNSZonesRequest{
 		OrganizationID: nil,
 		ProjectID:      nil,
-		OrderBy:        "",
-		Page:           nil,
-		PageSize:       nil,
-		Domain:         "",
-		DNSZone:        "",
-	})
+		//Domain:         "",
+		//DNSZone:        "",
+	}, scw.WithAllPages())
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list domains: %v", err)
@@ -499,7 +499,7 @@ func getRecords(c *scw.Client, zoneName string) ([]*domain.Record, error) {
 
 	records, err := api.ListDNSZoneRecords(&domain.ListDNSZoneRecordsRequest{
 		DNSZone: zoneName,
-	})
+	}, scw.WithAllPages())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list records: %v", err)
 	}
@@ -514,7 +514,7 @@ func getRecordsByName(client *scw.Client, zoneName, recordName string) ([]*domai
 	records, err := api.ListDNSZoneRecords(&domain.ListDNSZoneRecordsRequest{
 		DNSZone: zoneName,
 		Name:    recordName,
-	})
+	}, scw.WithAllPages())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list records: %v", err)
 	}
