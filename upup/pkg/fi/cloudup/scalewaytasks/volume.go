@@ -99,10 +99,11 @@ func (_ *Volume) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *Volume) erro
 
 	instanceService := t.Cloud.InstanceService()
 	_, err := instanceService.CreateVolume(&instance.CreateVolumeRequest{
-		Zone: scw.Zone(fi.StringValue(e.Zone)),
-		Name: fi.StringValue(e.Name),
-		Size: scw.SizePtr(scw.Size(fi.Int64Value(e.Size))),
-		Tags: e.Tags,
+		Zone:       scw.Zone(fi.StringValue(e.Zone)),
+		Name:       fi.StringValue(e.Name),
+		VolumeType: "b_ssd",
+		Size:       scw.SizePtr(scw.Size(fi.Int64Value(e.Size))),
+		Tags:       e.Tags,
 	})
 
 	return err

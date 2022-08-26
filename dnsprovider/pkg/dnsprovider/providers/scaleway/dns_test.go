@@ -2,9 +2,10 @@ package dns
 
 import (
 	"context"
+	"testing"
+
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
-	"testing"
 
 	domain "github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
@@ -12,7 +13,7 @@ import (
 
 func createValidTestClient(t *testing.T) *scw.Client {
 	config, _ := scw.LoadConfig()
-	profile := config.Profiles["devterraform"]
+	profile := config.Profiles["normal"]
 	client, err := scw.NewClient(scw.WithProfile(profile))
 	if err != nil {
 		t.Errorf("error creating client: %v", err)
@@ -47,8 +48,8 @@ func TestZonesListValid(t *testing.T) {
 		t.Errorf("expected only 1 zone, got %d", len(zoneList))
 	}
 	zone := zoneList[0]
-	if zone.Name() != "scaleway-terraform.com" {
-		t.Errorf("expected example.com as zone name, got: %s", zone.Name())
+	if zone.Name() != "leila.sieben.fr" {
+		t.Errorf("expected leila.sieben.fr as zone name, got: %s", zone.Name())
 	}
 }
 
@@ -68,7 +69,7 @@ func TestZonesListShouldFail(t *testing.T) {
 
 func TestAddValid(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "scaleway-terraform.com")
+	zs := getDNSProviderZones(client, "leila.sieben.fr")
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	outZone, err := zs.Add(inZone)
@@ -98,7 +99,7 @@ func TestAddShouldFail(t *testing.T) {
 
 func TestRemoveValid(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "scaleway-terraform.com")
+	zs := getDNSProviderZones(client, "leila.sieben.fr")
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	err := zs.Remove(inZone)
@@ -122,7 +123,7 @@ func TestRemoveShouldFail(t *testing.T) {
 
 func TestNewZone(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "scaleway-terraform.com")
+	zs := getDNSProviderZones(client, "leila.sieben.fr")
 
 	zone, err := zs.New("kops-dns-test")
 
@@ -136,10 +137,10 @@ func TestNewZone(t *testing.T) {
 
 func TestNewResourceRecordSet(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "scaleway-terraform.com")
+	zs := getDNSProviderZones(client, "leila.sieben.fr")
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: "scaleway-terraform.com",
+		DNSZone: "leila.sieben.fr",
 		Changes: []*domain.RecordChange{
 			{
 				Add: &domain.RecordChangeAdd{
@@ -159,11 +160,11 @@ func TestNewResourceRecordSet(t *testing.T) {
 		t.Errorf("error creating record: %v", err)
 	}
 
-	zone, err := zs.New("scaleway-terraform.com")
+	zone, err := zs.New("leila.sieben.fr")
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
 	}
-	if zone.Name() != "scaleway-terraform.com" {
+	if zone.Name() != "leila.sieben.fr" {
 		t.Errorf("unexpected zone name: %v", zone.Name())
 	}
 
@@ -177,7 +178,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 		t.Errorf("unexpected number of records: %d", len(rrsets))
 	}
 
-	records, err := rrset.Get("test.scaleway-terraform.com")
+	records, err := rrset.Get("test.leila.sieben.fr")
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
@@ -185,7 +186,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 	if len(records) != 1 {
 		t.Errorf("unexpected records from resource record set: %d, expected 1 record", len(records))
 	}
-	if records[0].Name() != "test.scaleway-terraform.com" {
+	if records[0].Name() != "test.leila.sieben.fr" {
 		t.Errorf("unexpected record name: %s, expected 'test'", records[0].Name())
 	}
 	if len(records[0].Rrdatas()) != 1 {
@@ -202,7 +203,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 	}
 
 	for _, id := range recordsIds {
-		err = deleteRecord(client, "scaleway-terraform.com", id)
+		err = deleteRecord(client, "leila.sieben.fr", id)
 		if err != nil {
 			t.Errorf("error deleting record: %v", err)
 		}
@@ -212,10 +213,10 @@ func TestNewResourceRecordSet(t *testing.T) {
 func TestResourceRecordChangeset(t *testing.T) {
 	ctx := context.Background()
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "scaleway-terraform.com")
+	zs := getDNSProviderZones(client, "leila.sieben.fr")
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: "scaleway-terraform.com",
+		DNSZone: "leila.sieben.fr",
 		Changes: []*domain.RecordChange{
 			{
 				Add: &domain.RecordChangeAdd{
@@ -247,11 +248,11 @@ func TestResourceRecordChangeset(t *testing.T) {
 		t.Errorf("error creating record: %v", err)
 	}
 
-	zone, err := zs.New("scaleway-terraform.com")
+	zone, err := zs.New("leila.sieben.fr")
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
 	}
-	if zone.Name() != "scaleway-terraform.com" {
+	if zone.Name() != "leila.sieben.fr" {
 		t.Errorf("unexpected zone name: %v", zone.Name())
 	}
 
@@ -276,28 +277,28 @@ func TestResourceRecordChangeset(t *testing.T) {
 		t.Errorf("error applying changeset: %v", err)
 	}
 
-	records, err := rrset.Get("test.scaleway-terraform.com")
+	records, err := rrset.Get("test.leila.sieben.fr")
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
-	records, err = rrset.Get("to-add.scaleway-terraform.com")
+	records, err = rrset.Get("to-add.leila.sieben.fr")
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
-	records, err = rrset.Get("to-upsert.scaleway-terraform.com")
+	records, err = rrset.Get("to-upsert.leila.sieben.fr")
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
 	if records[0].Ttl() != 3601 {
 		t.Errorf("unexpected record TTL: %d, expected 3601", records[0].Ttl())
 	}
-	records, err = rrset.Get("to-remove.scaleway-terraform.com")
+	records, err = rrset.Get("to-remove.leila.sieben.fr")
 	if records != nil {
 		t.Errorf("record set 'to-remove' should have been deleted")
 	}
 
 	for _, id := range recordsIds {
-		err = deleteRecord(client, "scaleway-terraform.com", id)
+		err = deleteRecord(client, "leila.sieben.fr", id)
 		if err != nil {
 			t.Errorf("error deleting record: %v", err)
 		}
