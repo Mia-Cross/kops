@@ -42,10 +42,10 @@ const (
 	defaultNodeMachineTypeHetzner = "cx21"
 	defaultNodeMachineTypeSCW     = "DEV1-M"
 
-	defaultBastionMachineTypeGCE      = "f1-micro"
-	defaultBastionMachineTypeAzure    = "Standard_B2ms"
-	defaultBastionMachineTypeHetzner  = "cx11"
-	defaultBastionMachineTypeScaleway = "DEV1-M"
+	defaultBastionMachineTypeGCE     = "f1-micro"
+	defaultBastionMachineTypeAzure   = "Standard_B2ms"
+	defaultBastionMachineTypeHetzner = "cx11"
+	defaultBastionMachineTypeSCW     = "DEV1-M"
 
 	defaultMasterMachineTypeGCE     = "e2-medium"
 	defaultMasterMachineTypeDO      = "s-2vcpu-4gb"
@@ -374,7 +374,7 @@ func defaultMachineType(cloud fi.Cloud, cluster *kops.Cluster, ig *kops.Instance
 			return defaultNodeMachineTypeSCW, nil
 
 		case kops.InstanceGroupRoleBastion:
-			return defaultBastionMachineTypeScaleway, nil
+			return defaultBastionMachineTypeSCW, nil
 		}
 	}
 
