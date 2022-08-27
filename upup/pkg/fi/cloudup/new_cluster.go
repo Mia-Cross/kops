@@ -1460,6 +1460,10 @@ func defaultImage(cluster *kopsapi.Cluster, channel *kopsapi.Channel, architectu
 	case kopsapi.CloudProviderDO:
 		return defaultDONodeImage
 	}
+	switch cluster.Spec.GetCloudProvider() {
+	case kopsapi.CloudProviderScaleway:
+		return defaultSCWNodeImage
+	}
 	klog.Infof("Cannot set default Image for CloudProvider=%q", cluster.Spec.GetCloudProvider())
 	return ""
 }
