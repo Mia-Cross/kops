@@ -193,7 +193,7 @@ func (s *scwCloudImplementation) VPCService() *vpc.API {
 // FindVPCInfo is not implemented yet, it's only here to satisfy the fi.Cloud interface
 func (s *scwCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
 	klog.V(8).Info("scaleway cloud provider FindVPCInfo not implemented yet")
-	return nil, fmt.Errorf("HELLO, scaleway cloud provider does not support vpc at this time")
+	return nil, fmt.Errorf("scaleway cloud provider does not support vpc at this time")
 }
 
 func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance) error {

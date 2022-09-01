@@ -333,13 +333,15 @@ func deleteServer(cloud fi.Cloud, tracker *resources.Resource) error {
 	}
 
 	// We detach the private network
-	err = instanceService.DeletePrivateNIC(&instance.DeletePrivateNICRequest{
-		Zone:         zone,
-		ServerID:     tracker.ID,
-		PrivateNicID: srv.Server.PrivateNics[0].ID,
-	})
-	if err != nil {
-		return fmt.Errorf("delete instance %s: error detaching private network: %v", tracker.ID, err)
+	if len(srv.Server.PrivateNics) > 0 {
+		err = instanceService.DeletePrivateNIC(&instance.DeletePrivateNICRequest{
+			Zone:         zone,
+			ServerID:     tracker.ID,
+			PrivateNicID: srv.Server.PrivateNics[0].ID,
+		})
+		if err != nil {
+			return fmt.Errorf("delete instance %s: error detaching private network: %v", tracker.ID, err)
+		}
 	}
 
 	// If instance is running, we turn it off

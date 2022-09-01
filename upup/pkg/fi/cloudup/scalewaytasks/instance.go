@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/vpcgw/v1"
@@ -169,13 +168,23 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		}
 
 		// We put the instance inside the private network
-		_, err = instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
+		pNIC, err := instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
 			Zone:             zone,
 			ServerID:         srv.Server.ID,
 			PrivateNetworkID: pn[0].ID,
 		})
 		if err != nil {
 			return fmt.Errorf("error linking instance to private network: %v", err)
+		}
+
+		// We wait for the private nic to be ready before proceeding
+		_, err = instanceService.WaitForPrivateNIC(&instance.WaitForPrivateNICRequest{
+			ServerID:     srv.Server.ID,
+			PrivateNicID: pNIC.PrivateNic.ID,
+			Zone:         zone,
+		})
+		if err != nil {
+			return fmt.Errorf("error waiting for private nic: %v", err)
 		}
 	}
 
@@ -192,10 +201,6 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	if len(gwNetwork) < 1 {
 		klog.V(4).Infof("Could not find any gateway connexion, skipping NAT rules creation")
 	} else {
-		klog.V(4).Infof("=== waiting for gw network to write the rules")
-
-		time.Sleep(15 * time.Second)
-		klog.V(4).Infof("=== creating rules")
 		entries, err := gwService.ListDHCPEntries(&vpcgw.ListDHCPEntriesRequest{
 			Zone:             zone,
 			GatewayNetworkID: scw.StringPtr(gwNetwork[0].ID),
@@ -213,7 +218,6 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			})
 			port += 1
 		}
-		klog.V(4).Infof("=== rules built")
 
 		_, err = gwService.SetPATRules(&vpcgw.SetPATRulesRequest{
 			Zone:      zone,
