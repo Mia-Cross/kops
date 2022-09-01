@@ -86,7 +86,6 @@ type Interface struct {
 
 // NewProvider returns an implementation of dnsprovider.Interface
 func NewProvider(client *scw.Client, parentDomain string) dnsprovider.Interface {
-	klog.Infof("HELLO, I'M A NEW DNS PROVIDER !!")
 	return &Interface{client: client, parentDomain: parentDomain}
 }
 
@@ -132,8 +131,9 @@ func (z *zones) Add(newZone dnsprovider.Zone) (dnsprovider.Zone, error) {
 		Domain:    z.parentDomain,
 	}
 
-	klog.Infof("HELLO, I WANT TO ADD A NEW ZONE (%s) !!", newZone.Name())
+	klog.V(8).Infof("Adding new DNS zone %s to domain %s", newZone.Name(), z.parentDomain)
 	d, err := createDomain(z.client, domainCreateRequest)
+	klog.V(4).Infof("Added new DNS zone %s to domain %s", d.Subdomain, d.Domain)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,6 @@ func (z *zones) Remove(zone dnsprovider.Zone) error {
 
 // New returns a new implementation of dnsprovider.Zone
 func (z *zones) New(name string) (dnsprovider.Zone, error) {
-	klog.Infof("HELLO, I'M A NEW DNS ZONE !!")
 	return &zone{
 		name:         name,
 		parentDomain: z.parentDomain,
@@ -341,10 +340,12 @@ func (r *resourceRecordChangeset) Apply(ctx context.Context) error {
 
 	if len(r.additions) > 0 {
 		for _, rrset := range r.additions {
+			klog.V(8).Infof("adding new DNS record %s to zone %s", rrset.Name(), r.zone.name)
 			err := r.applyResourceRecordSet(rrset)
 			if err != nil {
 				return fmt.Errorf("failed to apply resource record set: %s, err: %s", rrset.Name(), err)
 			}
+			klog.V(4).Infof("added new DNS record %s to zone %s", rrset.Name(), r.zone.name)
 		}
 
 		klog.V(2).Info("record change set additions complete")

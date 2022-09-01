@@ -25,7 +25,6 @@ var _ CloudProvider = &ScwCloudProvider{}
 
 // NewScwCloudProvider returns a new Scaleway Cloud volume provider.
 func NewScwCloudProvider() (*ScwCloudProvider, error) {
-	fmt.Println("HELLO, YOU'RE DEALING WITH SCALEWAY VOLUMES")
 	scwClient, err := scw.NewClient(
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
