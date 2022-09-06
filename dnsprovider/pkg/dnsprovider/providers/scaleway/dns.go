@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"golang.org/x/oauth2"
 	"k8s.io/klog/v2"
@@ -32,13 +31,14 @@ func init() {
 			return nil, err
 		}
 
-		domainName := make([]byte, 100) // TODO(Mia-Cross): is 100 enough for a domain name ? There might be a cleaner way to do this
-		_, err = config.Read(domainName)
+		domainName, err := io.ReadAll(config)
+		//domainName := make([]byte, 100) // TODO(Mia-Cross): is 100 enough for a domain name ? There might be a cleaner way to do this
+		//_, err = config.Read(domainName)
 		if err != nil {
 			return nil, err
 		}
 
-		return NewProvider(client, strings.TrimRight(string(domainName), "\x00")), nil
+		return NewProvider(client, string(domainName)), nil
 	})
 }
 
@@ -133,10 +133,10 @@ func (z *zones) Add(newZone dnsprovider.Zone) (dnsprovider.Zone, error) {
 
 	klog.V(8).Infof("Adding new DNS zone %s to domain %s", newZone.Name(), z.parentDomain)
 	d, err := createDomain(z.client, domainCreateRequest)
-	klog.V(4).Infof("Added new DNS zone %s to domain %s", d.Subdomain, d.Domain)
 	if err != nil {
 		return nil, err
 	}
+	klog.V(4).Infof("Added new DNS zone %s to domain %s", d.Subdomain, d.Domain)
 
 	return &zone{
 		name:         d.Subdomain,

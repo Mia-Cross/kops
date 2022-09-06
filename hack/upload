@@ -49,8 +49,9 @@ if [[ "${DEST:0:5}" == "do://" ]]; then
 fi
 
 if [[ "${DEST:0:6}" == "scw://" ]]; then
-  SCW_BUCKET=`echo "${DEST}" | cut -c 7-`
-  rclone sync ${SRC} scaleway://$SCW_BUCKET -P
+  SCW_BUCKET=$(echo "${DEST}" | cut -c 7-)
+  echo "--> s3cmd put "${SRC}"/ s3://"$SCW_BUCKET" --recursive ${PUBLIC:+--acl-public} --progress"
+  s3cmd put "${SRC}"/ s3://"$SCW_BUCKET" --recursive ${PUBLIC:+--acl-public} --progress
   exit 0
 fi
 

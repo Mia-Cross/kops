@@ -17,6 +17,7 @@ limitations under the License.
 package zones
 
 import (
+	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/clouds"
@@ -361,13 +362,12 @@ var azureZones = []string{
 	"westusstage",
 }
 
-var scwZones = []string{
-	"fr-par-1",
-	"fr-par-2",
-	"fr-par-3",
-	"nl-ams-1",
-	"nl-ams-2",
-	"pl-waw-1",
+func scwZones() []string {
+	var scwZones []string
+	for _, zone := range scw.AllZones {
+		scwZones = append(scwZones, string(zone))
+	}
+	return scwZones
 }
 
 // GuessCloudForZone tries to infer the cloudprovider from the zone name
@@ -408,7 +408,7 @@ func WellKnownZonesForCloud(matchCloud kops.CloudProviderID) []string {
 	case kops.CloudProviderHetzner:
 		return hetznerZones
 	case kops.CloudProviderScaleway:
-		return scwZones
+		return scwZones()
 
 	default:
 		return nil

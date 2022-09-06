@@ -7,7 +7,7 @@ PROFILE=normal
 export REGISTRY_NAME=kops
 export DOCKER_REGISTRY=rg.fr-par.scw.cloud
 export DOCKER_IMAGE_PREFIX=$REGISTRY_NAME/
-export DOCKER_TAG=1.25.0-alpha.2
+export DOCKER_TAG=1.25.0-beta.1
 
 if [[ $1 == "-r" ]]
 then

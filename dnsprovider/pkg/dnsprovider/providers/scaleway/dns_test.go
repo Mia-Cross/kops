@@ -11,9 +11,14 @@ import (
 	"github.com/scaleway/scaleway-sdk-go/scw"
 )
 
+const (
+	validScalewayProfileName = "normal"
+	validDNSZone             = "leila.sieben.fr"
+)
+
 func createValidTestClient(t *testing.T) *scw.Client {
 	config, _ := scw.LoadConfig()
-	profile := config.Profiles["normal"]
+	profile := config.Profiles[validScalewayProfileName]
 	client, err := scw.NewClient(scw.WithProfile(profile))
 	if err != nil {
 		t.Errorf("error creating client: %v", err)
@@ -44,12 +49,12 @@ func TestZonesListValid(t *testing.T) {
 	if err != nil {
 		t.Errorf("error listing zones: %v", err)
 	}
-	if len(zoneList) != 1 {
-		t.Errorf("expected only 1 zone, got %d", len(zoneList))
+	if len(zoneList) < 1 {
+		t.Errorf("expected at least 1 zone, got 0")
 	}
 	zone := zoneList[0]
-	if zone.Name() != "leila.sieben.fr" {
-		t.Errorf("expected leila.sieben.fr as zone name, got: %s", zone.Name())
+	if zone.Name() != validDNSZone {
+		t.Errorf("expected %s as zone name, got: %s", validDNSZone, zone.Name())
 	}
 }
 
@@ -69,13 +74,16 @@ func TestZonesListShouldFail(t *testing.T) {
 
 func TestAddValid(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "leila.sieben.fr")
+	zs := getDNSProviderZones(client, validDNSZone)
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	outZone, err := zs.Add(inZone)
 
 	if err != nil {
 		t.Errorf("unexpected err: %v", err)
+	}
+	if outZone == nil {
+		t.Errorf("zone is nil, exiting test early")
 	}
 	if outZone.Name() != "kops-dns-test" {
 		t.Errorf("unexpected zone name: %s", outZone.Name())
@@ -99,7 +107,7 @@ func TestAddShouldFail(t *testing.T) {
 
 func TestRemoveValid(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "leila.sieben.fr")
+	zs := getDNSProviderZones(client, validDNSZone)
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	err := zs.Remove(inZone)
@@ -123,12 +131,16 @@ func TestRemoveShouldFail(t *testing.T) {
 
 func TestNewZone(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "leila.sieben.fr")
+	zs := getDNSProviderZones(client, validDNSZone)
 
 	zone, err := zs.New("kops-dns-test")
 
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
+		return
+	}
+	if zone == nil {
+		t.Errorf("zone is nil, exiting test early")
 	}
 	if zone.Name() != "kops-dns-test" {
 		t.Errorf("unexpected zone name: %v", zone.Name())
@@ -137,10 +149,10 @@ func TestNewZone(t *testing.T) {
 
 func TestNewResourceRecordSet(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "leila.sieben.fr")
+	zs := getDNSProviderZones(client, validDNSZone)
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: "leila.sieben.fr",
+		DNSZone: validDNSZone,
 		Changes: []*domain.RecordChange{
 			{
 				Add: &domain.RecordChangeAdd{
@@ -160,11 +172,15 @@ func TestNewResourceRecordSet(t *testing.T) {
 		t.Errorf("error creating record: %v", err)
 	}
 
-	zone, err := zs.New("leila.sieben.fr")
+	zone, err := zs.New(validDNSZone)
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
+
 	}
-	if zone.Name() != "leila.sieben.fr" {
+	if zone == nil {
+		t.Errorf("zone is nil, exiting test early")
+	}
+	if zone.Name() != validDNSZone {
 		t.Errorf("unexpected zone name: %v", zone.Name())
 	}
 
@@ -178,7 +194,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 		t.Errorf("unexpected number of records: %d", len(rrsets))
 	}
 
-	records, err := rrset.Get("test.leila.sieben.fr")
+	records, err := rrset.Get("test." + validDNSZone)
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
@@ -186,7 +202,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 	if len(records) != 1 {
 		t.Errorf("unexpected records from resource record set: %d, expected 1 record", len(records))
 	}
-	if records[0].Name() != "test.leila.sieben.fr" {
+	if records[0].Name() != "test."+validDNSZone {
 		t.Errorf("unexpected record name: %s, expected 'test'", records[0].Name())
 	}
 	if len(records[0].Rrdatas()) != 1 {
@@ -203,7 +219,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 	}
 
 	for _, id := range recordsIds {
-		err = deleteRecord(client, "leila.sieben.fr", id)
+		err = deleteRecord(client, validDNSZone, id)
 		if err != nil {
 			t.Errorf("error deleting record: %v", err)
 		}
@@ -213,10 +229,10 @@ func TestNewResourceRecordSet(t *testing.T) {
 func TestResourceRecordChangeset(t *testing.T) {
 	ctx := context.Background()
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "leila.sieben.fr")
+	zs := getDNSProviderZones(client, validDNSZone)
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: "leila.sieben.fr",
+		DNSZone: validDNSZone,
 		Changes: []*domain.RecordChange{
 			{
 				Add: &domain.RecordChangeAdd{
@@ -248,11 +264,14 @@ func TestResourceRecordChangeset(t *testing.T) {
 		t.Errorf("error creating record: %v", err)
 	}
 
-	zone, err := zs.New("leila.sieben.fr")
+	zone, err := zs.New(validDNSZone)
 	if err != nil {
 		t.Errorf("error creating zone: %v", err)
 	}
-	if zone.Name() != "leila.sieben.fr" {
+	if zone == nil {
+		t.Errorf("zone is nil, exiting test early")
+	}
+	if zone.Name() != validDNSZone {
 		t.Errorf("unexpected zone name: %v", zone.Name())
 	}
 
@@ -277,28 +296,28 @@ func TestResourceRecordChangeset(t *testing.T) {
 		t.Errorf("error applying changeset: %v", err)
 	}
 
-	records, err := rrset.Get("test.leila.sieben.fr")
+	records, err := rrset.Get("test." + validDNSZone)
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
-	records, err = rrset.Get("to-add.leila.sieben.fr")
+	records, err = rrset.Get("to-add." + validDNSZone)
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
-	records, err = rrset.Get("to-upsert.leila.sieben.fr")
+	records, err = rrset.Get("to-upsert." + validDNSZone)
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
 	if records[0].Ttl() != 3601 {
 		t.Errorf("unexpected record TTL: %d, expected 3601", records[0].Ttl())
 	}
-	records, err = rrset.Get("to-remove.leila.sieben.fr")
+	records, err = rrset.Get("to-remove." + validDNSZone)
 	if records != nil {
 		t.Errorf("record set 'to-remove' should have been deleted")
 	}
 
 	for _, id := range recordsIds {
-		err = deleteRecord(client, "leila.sieben.fr", id)
+		err = deleteRecord(client, validDNSZone, id)
 		if err != nil {
 			t.Errorf("error deleting record: %v", err)
 		}
