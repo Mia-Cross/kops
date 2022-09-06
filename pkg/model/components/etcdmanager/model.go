@@ -181,8 +181,9 @@ metadata:
 spec:
   containers:
   - name: etcd-manager
-    image: rg.fr-par.scw.cloud/kops/etcd-manager:1.25.0-alpha.2
+    # TODO(Mia-Cross): rollback this change ASAP
     # image: registry.k8s.io/etcdadm/etcd-manager:v3.0.20220727
+    image: rg.fr-par.scw.cloud/kops/etcd-manager:latest-amd64
     resources:
       requests:
         cpu: 100m

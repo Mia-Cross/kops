@@ -191,6 +191,9 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	dest["SCW_DEFAULT_REGION"] = func() string {
 		return os.Getenv("SCW_DEFAULT_REGION")
 	}
+	dest["SCW_DEFAULT_ZONE"] = func() string {
+		return os.Getenv("SCW_DEFAULT_ZONE")
+	}
 
 	if featureflag.Spotinst.Enabled() {
 		if creds, err := spotinst.LoadCredentials(); err == nil {
