@@ -28,6 +28,7 @@ import (
 
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops/model"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/utils"
 	"sigs.k8s.io/yaml"
 
@@ -213,6 +214,30 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 		}
 	}
 
+	if cluster.Spec.GetCloudProvider() == kops.CloudProviderScaleway {
+		region, _, err := scaleway.FindRegionAndZone(cluster)
+		if err != nil {
+			return nil, err
+		}
+		if region == "" {
+			klog.Warningf("unable to determine cluster region")
+		} else {
+			env["SCW_DEFAULT_REGION"] = region
+		}
+		scwAccessKey := os.Getenv("SCW_ACCESS_KEY")
+		if scwAccessKey != "" {
+			env["SCW_ACCESS_KEY"] = scwAccessKey
+		}
+		scwSecretKey := os.Getenv("SCW_SECRET_KEY")
+		if scwSecretKey != "" {
+			env["SCW_SECRET_KEY"] = scwSecretKey
+		}
+		scwProjectID := os.Getenv("SCW_DEFAULT_PROJECT_ID")
+		if scwProjectID != "" {
+			env["SCW_DEFAULT_PROJECT_ID"] = scwProjectID
+		}
+	}
+
 	return env, nil
 }
 
@@ -311,6 +336,7 @@ func (b *BootstrapScript) Run(c *fi.Context) error {
 
 	var nodeupScript resources.NodeUpScript
 	nodeupScript.NodeUpAssets = b.builder.NodeUpAssets
+
 	nodeupScript.KubeEnv = config
 
 	{

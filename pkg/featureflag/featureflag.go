@@ -92,6 +92,8 @@ var (
 	ImageDigest = new("ImageDigest", Bool(true))
 	// Hetzner toggles the Hetzner Cloud support.
 	Hetzner = new("Hetzner", Bool(false))
+	// Scaleway toggles the Scaleway Cloud support.
+	Scaleway = new("Scaleway", Bool(false))
 )
 
 // FeatureFlag defines a feature flag

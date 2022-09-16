@@ -38,6 +38,8 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/hetznertasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstacktasks"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scalewaytasks"
 )
 
 const (
@@ -115,6 +117,8 @@ func (b *MasterVolumeBuilder) Build(c *fi.ModelBuilderContext) error {
 				}
 			case kops.CloudProviderAzure:
 				b.addAzureVolume(c, name, volumeSize, zone, etcd, m, allMembers)
+			case kops.CloudProviderScaleway:
+				b.addScalewayVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 			default:
 				return fmt.Errorf("unknown cloudprovider %q", b.Cluster.Spec.GetCloudProvider())
 			}
@@ -377,4 +381,25 @@ func (b *MasterVolumeBuilder) addAzureVolume(
 		Tags:   tags,
 	}
 	c.AddTask(t)
+}
+
+func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
+	tags := []string{
+		fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.ObjectMeta.Name),
+		scaleway.TagNameEtcdClusterPrefix + etcd.Name,
+		scaleway.TagNameRolePrefix + "master=1",
+		scaleway.TagInstanceGroup + "=" + fi.StringValue(m.InstanceGroup),
+		scaleway.TagRoleVolume + "=" + etcd.Name,
+	}
+
+	t := &scalewaytasks.Volume{
+		Name:      fi.String(name),
+		Lifecycle: b.Lifecycle,
+		Size:      fi.Int64(int64(volumeSize) * 1e9),
+		Zone:      &zone,
+		Tags:      tags,
+	}
+	c.AddTask(t)
+
+	return
 }

@@ -731,6 +731,17 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 				// Don't wrap file-not-found
 				if os.IsNotExist(err) {
 					klog.V(2).Infof("ssh key not found at %s", sshPublicKeyPath)
+					// Try to look for ed25519 type key
+					sshPublicKeyPath = "~/.ssh/id_ed25519.pub"
+					c.SSHPublicKeys, err = loadSSHPublicKeys(sshPublicKeyPath)
+					if err != nil {
+						// Don't wrap file-not-found
+						if os.IsNotExist(err) {
+							klog.V(2).Infof("ssh key not found at %s", sshPublicKeyPath)
+						} else {
+							return fmt.Errorf("error reading SSH key file %q: %v", sshPublicKeyPath, err)
+						}
+					}
 				} else {
 					return fmt.Errorf("error reading SSH key file %q: %v", sshPublicKeyPath, err)
 				}

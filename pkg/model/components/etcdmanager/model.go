@@ -40,6 +40,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/cloudup/hetzner"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
+	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/fitasks"
 	"k8s.io/kops/util/pkg/env"
 	"k8s.io/kops/util/pkg/exec"
@@ -181,7 +182,9 @@ metadata:
 spec:
   containers:
   - name: etcd-manager
-    image: registry.k8s.io/etcdadm/etcd-manager:v3.0.20220831
+    # TODO(Mia-Cross): rollback this change ASAP
+    # image: registry.k8s.io/etcdadm/etcd-manager:v3.0.20220727
+    image: rg.fr-par.scw.cloud/kops/etcd-manager:latest-amd64
     resources:
       requests:
         cpu: 100m
@@ -440,6 +443,16 @@ func (b *EtcdManagerBuilder) buildPod(etcdCluster kops.EtcdClusterSpec, instance
 				fmt.Sprintf("%s=%s", openstack.TagClusterName, b.Cluster.Name),
 			}
 			config.VolumeNameTag = openstack.TagNameEtcdClusterPrefix + etcdCluster.Name
+
+		case kops.CloudProviderScaleway:
+			config.VolumeProvider = "scaleway"
+
+			config.VolumeTag = []string{
+				fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.Name),
+				scaleway.TagNameEtcdClusterPrefix + etcdCluster.Name,
+				scaleway.TagNameRolePrefix + "master=1",
+			}
+			config.VolumeNameTag = scaleway.TagNameEtcdClusterPrefix + etcdCluster.Name
 
 		default:
 			return nil, fmt.Errorf("CloudProvider %q not supported with etcd-manager", b.Cluster.Spec.GetCloudProvider())
