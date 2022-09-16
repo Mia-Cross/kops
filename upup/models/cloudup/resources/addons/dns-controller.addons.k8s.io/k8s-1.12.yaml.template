@@ -70,16 +70,11 @@ spec:
               key: access-token
 {{- end }}
 {{- if eq GetCloudProvider "scaleway" }}
-        - name: SCW_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
+        - name: DNS_ZONE
+          value: {{ SCW_DNS_ZONE }}
+        envFrom:
+          - secretRef:
               name: scaleway-secret
-              key: SCW_ACCESS_KEY
-        - name: SCW_DEFAULT_ZONE
-          valueFrom:
-            secretKeyRef:
-              name: scaleway-secret
-              key: SCW_DEFAULT_ZONE
 {{- end }}
         resources:
           requests:

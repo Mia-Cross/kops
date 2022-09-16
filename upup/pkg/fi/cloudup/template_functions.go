@@ -189,6 +189,16 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	dest["SCW_DEFAULT_ZONE"] = func() string {
 		return os.Getenv("SCW_DEFAULT_ZONE")
 	}
+	dest["SCW_DNS_ZONE"] = func() string {
+		return cluster.Spec.DNSZone
+		//argv := tf.DNSControllerArgv()
+		//for _, arg := range argv {
+		//	if strings.HasPrefix(arg, "--zone=") {
+		//		return strings.TrimPrefix(arg, "--zone=")
+		//	}
+		//}
+		//return ""
+	}
 
 	if featureflag.Spotinst.Enabled() {
 		if creds, err := spotinst.LoadCredentials(); err == nil {
