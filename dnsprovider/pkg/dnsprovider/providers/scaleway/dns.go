@@ -31,14 +31,16 @@ func init() {
 			return nil, err
 		}
 
-		domainName, err := io.ReadAll(config)
+		//domainName, err := io.ReadAll(config)
 		//domainName := make([]byte, 100) // TODO(Mia-Cross): is 100 enough for a domain name ? There might be a cleaner way to do this
 		//_, err = config.Read(domainName)
-		if err != nil {
-			return nil, err
-		}
+		//if err != nil {
+		//	return nil, err
+		//}
+		parentDomain := os.Getenv("SCW_DNS_ZONE")
 
-		return NewProvider(client, string(domainName)), nil
+		return NewProvider(client, parentDomain), nil
+		//return NewProvider(client, string(domainName)), nil
 	})
 }
 
@@ -56,18 +58,22 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 }
 
 func newClient() (*scw.Client, error) {
-	accessToken := os.Getenv("SCW_ACCESS_KEY")
-	if accessToken == "" {
+	if accessKey := os.Getenv("SCW_ACCESS_KEY"); accessKey == "" {
 		return nil, errors.New("SCW_ACCESS_KEY is required")
 	}
-	tokenSource := &TokenSource{
-		AccessToken: accessToken,
+	if secretKey := os.Getenv("SCW_SECRET_KEY"); secretKey == "" {
+		return nil, errors.New("SCW_SECRET_KEY is required")
 	}
-	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
+
+	env := os.Environ()
+	klog.Infof("**** env in newClient%s\n")
+	for _, e := range env {
+		klog.Infof("%s\n", e)
+	}
 
 	// TODO(Mia-Cross): check if it's necessary to have both the oauth token & the scw env
 	scwClient, err := scw.NewClient(
-		scw.WithHTTPClient(oauthClient),
+		//scw.WithHTTPClient(oauthClient),
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
 	)
@@ -91,6 +97,12 @@ func NewProvider(client *scw.Client, parentDomain string) dnsprovider.Interface 
 
 // Zones returns an implementation of dnsprovider.Zones
 func (d Interface) Zones() (dnsprovider.Zones, bool) {
+	env := os.Environ()
+	klog.Infof("d.parent = %s", d.parentDomain)
+	klog.Infof("**** env in zones()%s\n")
+	for _, e := range env {
+		klog.Infof("%s\n", e)
+	}
 	return &zones{
 		client:       d.client,
 		parentDomain: d.parentDomain,
@@ -105,6 +117,8 @@ type zones struct {
 
 // List returns a list of all dns zones
 func (z *zones) List() ([]dnsprovider.Zone, error) {
+	klog.Infof("z.parent = %s", z.parentDomain)
+
 	domains, err := listDomains(z.client)
 	if err != nil {
 		return nil, err

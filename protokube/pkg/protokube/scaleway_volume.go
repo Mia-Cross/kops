@@ -25,14 +25,6 @@ var _ CloudProvider = &ScwCloudProvider{}
 
 // NewScwCloudProvider returns a new Scaleway Cloud volume provider.
 func NewScwCloudProvider() (*ScwCloudProvider, error) {
-	scwClient, err := scw.NewClient(
-		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
-		scw.WithEnv(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	metadataAPI := instance.NewMetadataAPI()
 	metadata, err := metadataAPI.GetMetadata()
 	if err != nil {
@@ -51,6 +43,15 @@ func NewScwCloudProvider() (*ScwCloudProvider, error) {
 
 	privateIP := metadata.PrivateIP
 	klog.V(4).Infof("Found first private net IP of the running server: %q", privateIP)
+
+	scwClient, err := scw.NewClient(
+		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
+		scw.WithEnv(),
+		scw.WithDefaultZone(zone),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error creating client: %w", err)
+	}
 
 	instanceAPI := instance.NewAPI(scwClient)
 	server, err := instanceAPI.GetServer(&instance.GetServerRequest{
