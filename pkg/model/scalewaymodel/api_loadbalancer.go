@@ -2,13 +2,13 @@ package scalewaymodel
 
 import (
 	"fmt"
+
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scalewaytasks"
-	"strings"
 )
 
 // APILoadBalancerModelBuilder builds a LoadBalancer for accessing the API
@@ -40,8 +40,8 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		return fmt.Errorf("unhandled LoadBalancer type %q", lbSpec.Type)
 	}
 
-	clusterName := strings.Replace(b.ClusterName(), ".", "-", -1)
-	loadBalancerName := "api-" + clusterName
+	//clusterName := strings.Replace(b.ClusterName(), ".", "-", -1)
+	loadBalancerName := "api." + b.ClusterName()
 
 	// Create LoadBalancer for API LB
 	loadBalancer := &scalewaytasks.LoadBalancer{ //TODO(jtherin): implement loadBalancer
@@ -49,7 +49,7 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		//Zone:     fi.String(b.Cluster.Spec.Subnets[0].Zone),
 		Lifecycle: b.Lifecycle,
 		Tags: []string{
-			scaleway.TagClusterName + "=" + clusterName,
+			scaleway.TagClusterName + "=" + b.ClusterName(),
 			scaleway.TagNameRolePrefix + scaleway.TagRoleLoadBalancer, // QUESTION : is this tag useful or not ?
 		},
 	}

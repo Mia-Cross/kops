@@ -57,6 +57,11 @@ func ListResources(cloud scaleway.ScwCloud, clusterName string) (map[string]*res
 
 func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
+
+	if strings.HasSuffix(clusterName, ".k8s.local") {
+		return nil, nil
+	}
+
 	names := strings.SplitN(clusterName, ".", 2)
 	clusterNameShort := names[0]
 	domainName := names[1]
@@ -67,14 +72,6 @@ func listDNSRecords(cloud fi.Cloud, clusterName string) ([]*resources.Resource, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to list records: %s", err)
 	}
-
-	//if domainName == "" {
-	//	if strings.HasSuffix(clusterName, ".k8s.local") {
-	//		klog.Info("Domain Name is empty. Ok to have an empty domain name since cluster is configured as gossip cluster.")
-	//		return nil, nil
-	//	}
-	//	return nil, fmt.Errorf("failed to find domain for cluster: %s", clusterName)
-	//}
 
 	resourceTrackers := []*resources.Resource(nil)
 	for _, record := range records.Records {

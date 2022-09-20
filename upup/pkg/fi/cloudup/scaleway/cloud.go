@@ -1,7 +1,6 @@
 package scaleway
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -71,12 +70,12 @@ var _ fi.Cloud = &scwCloudImplementation{}
 
 // scwCloudImplementation holds the scw.Client object to interact with Scaleway resources.
 type scwCloudImplementation struct {
-	client     *scw.Client
-	dns        dnsprovider.Interface
-	domainName string
-	region     string
-	zone       string
-	tags       map[string]string
+	client *scw.Client
+	dns    dnsprovider.Interface
+	//domainName string
+	region string
+	zone   string
+	tags   map[string]string
 
 	accountAPI  *account.API
 	domainAPI   *domain.API
@@ -127,12 +126,10 @@ func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) 
 		// TODO: check if error is explicit enough when credentials are missing
 	}
 
-	domainName := strings.SplitN(tags[TagClusterName], ".", 2)[1]
-
 	return &scwCloudImplementation{
-		client:      scwClient,
-		dns:         dns.NewProvider(scwClient, domainName),
-		domainName:  domainName,
+		client: scwClient,
+		dns:    dns.NewProvider(scwClient),
+		//domainName:  domainName,
 		region:      region,
 		zone:        zone,
 		tags:        tags,
@@ -158,8 +155,7 @@ func (s *scwCloudImplementation) ProviderID() kops.CloudProviderID {
 }
 
 func (s *scwCloudImplementation) DNS() (dnsprovider.Interface, error) {
-	config := bytes.NewReader([]byte(s.domainName))
-	provider, err := dnsprovider.GetDnsProvider(dns.ProviderName, config)
+	provider, err := dnsprovider.GetDnsProvider(dns.ProviderName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error building DNS provider: %v", err)
 	}

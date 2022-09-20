@@ -3,6 +3,10 @@ package scaleway
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	expirationcache "k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
@@ -11,8 +15,6 @@ import (
 	"k8s.io/kops/pkg/nodeidentity"
 	"k8s.io/kops/pkg/nodelabels"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
-	"strings"
-	"time"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
@@ -31,21 +33,6 @@ type nodeIdentifier struct {
 
 // New creates and returns a nodeidentity.Identifier for Nodes running on Scaleway
 func New(CacheNodeidentityInfo bool) (nodeidentity.Identifier, error) {
-	//scwAccessKey := os.Getenv("SCW_ACCESS_KEY")
-	//scwSecretKey := os.Getenv("SCW_SECRET_KEY")
-	//if scwAccessKey == "" {
-	//	if scwSecretKey == "" {
-	//		return nil, errors.New("both SCW_ACCESS_KEY and SCW_SECRET_KEY are required")
-	//	}
-	//	return nil, errors.New("SCW_ACCESS_KEY is required")
-	//}
-	//if scwSecretKey == "" {
-	//	return nil, errors.New("SCW_SECRET_KEY is required")
-	//}
-	//opts := []scw.ClientOption{
-	//	scw.WithAuth(scwAccessKey, scwSecretKey),
-	//}
-	//scwClient, err := scw.NewClient(opts...)
 	scwClient, err := scw.NewClient(
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
@@ -67,11 +54,11 @@ func (i *nodeIdentifier) IdentifyNode(ctx context.Context, node *corev1.Node) (*
 	if providerID == "" {
 		return nil, fmt.Errorf("providerID not set for node %s", node.Name)
 	}
-	if !strings.HasPrefix(providerID, "scw://") {
+	if !strings.HasPrefix(providerID, "scaleway://") {
 		return nil, fmt.Errorf("providerID %q not recognized for node %s", providerID, node.Name)
 	}
 
-	serverID := strings.TrimPrefix(providerID, "scw://")
+	serverID := strings.TrimPrefix(providerID, "scaleway://")
 
 	// If caching is enabled try pulling nodeidentity.Info from cache before doing a Scaleway API call.
 	if i.cacheEnabled {
@@ -138,9 +125,17 @@ func stringKeyFunc(obj interface{}) (string, error) {
 // getServer queries Scaleway for the server with the specified ID, returning an error if not found
 func (i *nodeIdentifier) getServer(ctx context.Context, id string) (*instance.Server, error) {
 	api := instance.NewAPI(i.client)
-	server, err := api.GetServer(&instance.GetServerRequest{ServerID: id}, scw.WithContext(ctx))
+	zone := os.Getenv("SCW_DEFAULT_ZONE")
+	uuid := strings.Split(id, "/")
+	if len(uuid) != 3 {
+		return nil, fmt.Errorf("unexpected format for server id %s", id)
+	}
+	server, err := api.GetServer(&instance.GetServerRequest{
+		ServerID: uuid[2],
+		Zone:     scw.Zone(zone),
+	}, scw.WithContext(ctx))
 	if err != nil || server == nil {
-		return nil, fmt.Errorf("failed to get info for server %s: %w", id, err)
+		return nil, fmt.Errorf("failed to get server %s: %w", id, err)
 	}
 
 	return server.Server, nil

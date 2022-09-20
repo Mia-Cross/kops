@@ -31,16 +31,7 @@ func init() {
 			return nil, err
 		}
 
-		//domainName, err := io.ReadAll(config)
-		//domainName := make([]byte, 100) // TODO(Mia-Cross): is 100 enough for a domain name ? There might be a cleaner way to do this
-		//_, err = config.Read(domainName)
-		//if err != nil {
-		//	return nil, err
-		//}
-		parentDomain := os.Getenv("SCW_DNS_ZONE")
-
-		return NewProvider(client, parentDomain), nil
-		//return NewProvider(client, string(domainName)), nil
+		return NewProvider(client), nil
 	})
 }
 
@@ -65,15 +56,7 @@ func newClient() (*scw.Client, error) {
 		return nil, errors.New("SCW_SECRET_KEY is required")
 	}
 
-	env := os.Environ()
-	klog.Infof("**** env in newClient%s\n")
-	for _, e := range env {
-		klog.Infof("%s\n", e)
-	}
-
-	// TODO(Mia-Cross): check if it's necessary to have both the oauth token & the scw env
 	scwClient, err := scw.NewClient(
-		//scw.WithHTTPClient(oauthClient),
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
 	)
@@ -86,39 +69,28 @@ func newClient() (*scw.Client, error) {
 
 // Interface implements dnsprovider.Interface
 type Interface struct {
-	client       *scw.Client
-	parentDomain string
+	client *scw.Client
 }
 
 // NewProvider returns an implementation of dnsprovider.Interface
-func NewProvider(client *scw.Client, parentDomain string) dnsprovider.Interface {
-	return &Interface{client: client, parentDomain: parentDomain}
+func NewProvider(client *scw.Client) dnsprovider.Interface {
+	return &Interface{client: client}
 }
 
 // Zones returns an implementation of dnsprovider.Zones
 func (d Interface) Zones() (dnsprovider.Zones, bool) {
-	env := os.Environ()
-	klog.Infof("d.parent = %s", d.parentDomain)
-	klog.Infof("**** env in zones()%s\n")
-	for _, e := range env {
-		klog.Infof("%s\n", e)
-	}
 	return &zones{
-		client:       d.client,
-		parentDomain: d.parentDomain,
+		client: d.client,
 	}, true
 }
 
 // zones is an implementation of dnsprovider.Zones
 type zones struct {
-	client       *scw.Client
-	parentDomain string
+	client *scw.Client
 }
 
 // List returns a list of all dns zones
 func (z *zones) List() ([]dnsprovider.Zone, error) {
-	klog.Infof("z.parent = %s", z.parentDomain)
-
 	domains, err := listDomains(z.client)
 	if err != nil {
 		return nil, err
@@ -128,9 +100,8 @@ func (z *zones) List() ([]dnsprovider.Zone, error) {
 	var zones []dnsprovider.Zone
 	for _, domainSummary := range domains {
 		newZone = &zone{
-			name:         domainSummary.Domain,
-			parentDomain: z.parentDomain,
-			client:       z.client,
+			name:   domainSummary.Domain,
+			client: z.client,
 		}
 		zones = append(zones, newZone)
 	}
@@ -142,10 +113,10 @@ func (z *zones) List() ([]dnsprovider.Zone, error) {
 func (z *zones) Add(newZone dnsprovider.Zone) (dnsprovider.Zone, error) {
 	domainCreateRequest := &domain.CreateDNSZoneRequest{
 		Subdomain: newZone.Name(),
-		Domain:    z.parentDomain,
+		Domain:    os.Getenv("SCW_DNS_ZONE"),
 	}
 
-	klog.V(8).Infof("Adding new DNS zone %s to domain %s", newZone.Name(), z.parentDomain)
+	klog.V(8).Infof("Adding new DNS zone %s to domain %s", newZone.Name(), os.Getenv("SCW_DNS_ZONE"))
 	d, err := createDomain(z.client, domainCreateRequest)
 	if err != nil {
 		return nil, err
@@ -153,31 +124,28 @@ func (z *zones) Add(newZone dnsprovider.Zone) (dnsprovider.Zone, error) {
 	klog.V(4).Infof("Added new DNS zone %s to domain %s", d.Subdomain, d.Domain)
 
 	return &zone{
-		name:         d.Subdomain,
-		parentDomain: d.Domain,
-		client:       z.client,
+		name:   d.Subdomain,
+		client: z.client,
 	}, nil
 }
 
 // Remove deletes a zone
 func (z *zones) Remove(zone dnsprovider.Zone) error {
-	return deleteDomain(z.client, zone.Name()+"."+z.parentDomain)
+	return deleteDomain(z.client, zone.Name()+"."+os.Getenv("SCW_DNS_ZONE"))
 }
 
 // New returns a new implementation of dnsprovider.Zone
 func (z *zones) New(name string) (dnsprovider.Zone, error) {
 	return &zone{
-		name:         name,
-		parentDomain: z.parentDomain,
-		client:       z.client,
+		name:   name,
+		client: z.client,
 	}, nil
 }
 
 // zone implements dnsprovider.Zone
 type zone struct {
-	name         string
-	client       *scw.Client
-	parentDomain string
+	name   string
+	client *scw.Client
 	//id           string
 }
 
@@ -438,7 +406,7 @@ func (r *resourceRecordChangeset) applyResourceRecordSet(rrset dnsprovider.Resou
 	}
 
 	recordCreateRequest := &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: r.zone.parentDomain,
+		DNSZone: os.Getenv("SCW_DNS_ZONE"),
 		Changes: []*domain.RecordChange{
 			{
 				Add: &domain.RecordChangeAdd{
@@ -468,8 +436,6 @@ func listDomains(c *scw.Client) ([]*domain.DNSZone, error) {
 	api := domain.NewAPI(c)
 
 	domains, err := api.ListDNSZones(&domain.ListDNSZonesRequest{
-		OrganizationID: nil,
-		ProjectID:      nil,
 		//Domain:         "",
 		//DNSZone:        "",
 	}, scw.WithAllPages())

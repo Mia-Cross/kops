@@ -1,7 +1,6 @@
 package protokube
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"k8s.io/klog/v2"
 	kopsv "k8s.io/kops"
 	"k8s.io/kops/protokube/pkg/gossip"
+	gossipscw "k8s.io/kops/protokube/pkg/gossip/scaleway"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 )
 
@@ -86,8 +86,7 @@ func (s *ScwCloudProvider) GossipSeeds() (gossip.SeedProvider, error) {
 			continue
 		}
 		clusterName := strings.TrimPrefix(tag, scaleway.TagClusterName+"=")
-		//return gossipscw.NewSeedProvider(s.scwClient, clusterName)
-		return nil, errors.New(clusterName) // TODO(Mia-Cross): remove that !!!!
+		return gossipscw.NewSeedProvider(s.scwClient, clusterName)
 	}
 	return nil, fmt.Errorf("failed to find cluster name label for running server: %v", s.server.Tags)
 }
