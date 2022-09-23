@@ -196,13 +196,6 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	}
 	dest["SCW_DNS_ZONE"] = func() string {
 		return cluster.Spec.DNSZone
-		//argv := tf.DNSControllerArgv()
-		//for _, arg := range argv {
-		//	if strings.HasPrefix(arg, "--zone=") {
-		//		return strings.TrimPrefix(arg, "--zone=")
-		//	}
-		//}
-		//return ""
 	}
 
 	if featureflag.Spotinst.Enabled() {

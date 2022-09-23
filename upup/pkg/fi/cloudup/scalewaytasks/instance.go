@@ -130,6 +130,12 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error creating instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
 
+		// We wait for the instance to be ready
+		_, err = scaleway.WaitForInstanceServer(instanceService, zone, srv.Server.ID)
+		if err != nil {
+			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
+		}
+
 		// We add the tags to the volume of the instance to be able to delete it later
 		_, err = instanceService.UpdateVolume(&instance.UpdateVolumeRequest{
 			Zone:     zone,

@@ -40,7 +40,6 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		return fmt.Errorf("unhandled LoadBalancer type %q", lbSpec.Type)
 	}
 
-	//clusterName := strings.Replace(b.ClusterName(), ".", "-", -1)
 	loadBalancerName := "api." + b.ClusterName()
 
 	// Create LoadBalancer for API LB
