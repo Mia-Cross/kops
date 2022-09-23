@@ -514,6 +514,16 @@ func (s *scwCloudImplementation) DeleteLoadBalancer(loadBalancer *lb.LB) error {
 		return fmt.Errorf("failed to delete load-balancer %s: %w", loadBalancer.ID, err)
 	}
 
+	for {
+		_, err := s.lbAPI.GetLB(&lb.GetLBRequest{
+			Region: s.region,
+			LBID:   loadBalancer.ID,
+		})
+		if is404Error(err) {
+			break
+		}
+	}
+
 	// We detach the IPs of the load-balancer
 	for _, ip := range ipsToRelease {
 		err := s.lbAPI.ReleaseIP(&lb.ReleaseIPRequest{
