@@ -30,6 +30,7 @@ const (
 	TagInstanceGroup         = "instance-group"
 	TagRoleVolume            = "volume"
 	TagRoleLoadBalancer      = "load-balancer"
+	TagNeedsUpdate           = "kops.k8s.io/needs-update"
 )
 
 // ScwCloud exposes all the interfaces required to operate on Scaleway resources
@@ -40,6 +41,7 @@ type ScwCloud interface {
 	Zone() string
 	ProviderID() kops.CloudProviderID
 	DNS() (dnsprovider.Interface, error)
+	ClusterName(tags []string) string
 
 	AccountService() *account.API
 	DomainService() *domain.API
@@ -60,7 +62,7 @@ type ScwCloud interface {
 	GetClusterGatewayNetworks(clusterName string) ([]*vpcgw.GatewayNetwork, error)
 	GetClusterGateways(clusterName string) ([]*vpcgw.Gateway, error)
 	GetClusterLoadBalancers(clusterName string) ([]*lb.LB, error)
-	GetClusterServers(clusterName string) ([]*instance.Server, error)
+	GetClusterServers(clusterName string, serverName *string) ([]*instance.Server, error)
 	GetClusterVolumes(clusterName string) ([]*instance.Volume, error)
 	GetClusterVPCs(clusterName string) ([]*vpc.PrivateNetwork, error)
 
@@ -79,7 +81,6 @@ var _ fi.Cloud = &scwCloudImplementation{}
 type scwCloudImplementation struct {
 	client *scw.Client
 	dns    dnsprovider.Interface
-	//domainName string
 	region scw.Region
 	zone   scw.Zone
 	tags   map[string]string
@@ -104,9 +105,8 @@ func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) 
 	}
 
 	return &scwCloudImplementation{
-		client: scwClient,
-		dns:    dns.NewProvider(scwClient),
-		//domainName:  domainName,
+		client:      scwClient,
+		dns:         dns.NewProvider(scwClient),
 		region:      scw.Region(region),
 		zone:        scw.Zone(zone),
 		tags:        tags,
@@ -125,6 +125,15 @@ func (s *scwCloudImplementation) Region() string {
 
 func (s *scwCloudImplementation) Zone() string {
 	return string(s.zone)
+}
+
+func (s *scwCloudImplementation) ClusterName(tags []string) string {
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, TagClusterName) {
+			return strings.TrimPrefix(tag, TagClusterName+"=")
+		}
+	}
+	return ""
 }
 
 func (s *scwCloudImplementation) ProviderID() kops.CloudProviderID {
@@ -211,7 +220,7 @@ func (s *scwCloudImplementation) DeleteGroup(group *cloudinstances.CloudInstance
 	for _, cloudInstance := range toDelete {
 		err := s.DeleteInstance(cloudInstance)
 		if err != nil {
-			return fmt.Errorf("error deleting server %s: %w", cloudInstance.ID, err)
+			return fmt.Errorf("error deleting group %q: %w", group.HumanName, err)
 		}
 	}
 	return nil
@@ -257,7 +266,8 @@ func (s *scwCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instanceg
 }
 
 func findServerGroups(s *scwCloudImplementation, clusterName string) (map[string][]*instance.Server, error) {
-	servers, err := s.GetClusterServers(clusterName)
+	//TODO(Mia-Cross): maybe refactor that because ig name could be given here instead of trimming the list after
+	servers, err := s.GetClusterServers(clusterName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -372,11 +382,13 @@ func (s *scwCloudImplementation) GetClusterLoadBalancers(clusterName string) ([]
 	return lbs.LBs, nil
 }
 
-func (s *scwCloudImplementation) GetClusterServers(clusterName string) ([]*instance.Server, error) {
-	servers, err := s.instanceAPI.ListServers(&instance.ListServersRequest{
+func (s *scwCloudImplementation) GetClusterServers(clusterName string, serverName *string) ([]*instance.Server, error) {
+	request := &instance.ListServersRequest{
 		Zone: s.zone,
+		Name: serverName,
 		Tags: []string{TagClusterName + "=" + clusterName},
-	}, scw.WithAllPages())
+	}
+	servers, err := s.instanceAPI.ListServers(request, scw.WithAllPages())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list servers: %w", err)
 	}
@@ -543,8 +555,11 @@ func (s *scwCloudImplementation) DeleteServer(server *instance.Server) error {
 		ServerID: server.ID,
 	})
 	if err != nil {
-		klog.V(4).Infof("instance %s was already deleted", server.Name)
-		return nil
+		if is404Error(err) {
+			klog.V(4).Infof("instance %s was already deleted", server.Name)
+			return nil
+		}
+		return err
 	}
 
 	// We detach the private network
@@ -582,6 +597,26 @@ func (s *scwCloudImplementation) DeleteServer(server *instance.Server) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete server %s: %w", server.ID, err)
+	}
+
+	for {
+		_, err := s.instanceAPI.GetServer(&instance.GetServerRequest{
+			Zone:     s.zone,
+			ServerID: server.ID,
+		})
+		if is404Error(err) {
+			break
+		}
+	}
+
+	for i := range server.Volumes {
+		err = s.instanceAPI.DeleteVolume(&instance.DeleteVolumeRequest{
+			Zone:     s.zone,
+			VolumeID: server.Volumes[i].ID,
+		})
+		if err != nil {
+			return fmt.Errorf("delete instance %s: error deleting volume %s: %w", server.ID, server.Volumes[i].ID, err)
+		}
 	}
 
 	return nil

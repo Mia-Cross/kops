@@ -2,14 +2,12 @@ package scalewaytasks
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/vpcgw/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/klog/v2"
-
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	_ "k8s.io/kops/upup/pkg/fi/cloudup/terraform"
@@ -27,60 +25,75 @@ type Instance struct {
 	Count          int
 	UserData       *fi.Resource
 	Network        *Network
+	NeedsUpdate    bool
 }
 
 var _ fi.Task = &Instance{}
 var _ fi.CompareWithID = &Instance{}
 
-func (d *Instance) CompareWithID() *string {
-	return d.Name
+func (s *Instance) CompareWithID() *string {
+	return s.Name
 }
 
-func (d *Instance) Find(c *fi.Context) (*Instance, error) {
+func (s *Instance) Find(c *fi.Context) (*Instance, error) {
 	cloud := c.Cloud.(scaleway.ScwCloud)
 
-	listServersArgs := &instance.ListServersRequest{
-		Zone: scw.Zone(fi.StringValue(d.Zone)),
-		//Name:   &name,
-	}
-
-	responseServers, err := cloud.InstanceService().ListServers(listServersArgs, scw.WithAllPages())
-	if err != nil {
+	servers, err := cloud.GetClusterServers(cloud.ClusterName(s.Tags), s.Name)
+	if err != nil || len(servers) == 0 {
 		return nil, err
 	}
 
-	count := 0
-	var lastServer *instance.Server
-	for _, srv := range responseServers.Servers {
-		if srv.Name == fi.StringValue(d.Name) {
-			count++
-			lastServer = srv
-		}
-	}
-
-	if lastServer == nil {
-		return nil, nil
-	}
+	//for i, server := range responseServers.Servers {
+	// Check if servers have been added to the instance group, therefore an update is needed
+	//if len(servers) >= s.Count {
+	//	s.NeedsUpdate = true
+	//	//continue
+	//}
+	//}
+	//TODO(Mia-Cross): we also need to find a way to tag existing servers as needing an update if etcd-clusters were added
+	server := servers[0]
 
 	return &Instance{
-		Name:           fi.String(lastServer.Name),
-		Count:          count,
-		Zone:           fi.String(lastServer.Zone.String()),
-		CommercialType: fi.String(lastServer.CommercialType),
-		Image:          d.Image, // image label is lost by server api
-		Tags:           lastServer.Tags,
-		UserData:       d.UserData, // TODO(Mia-Cross): get from instance or ignore change
-		Lifecycle:      d.Lifecycle,
-		Network:        d.Network,
+		Name:           fi.String(server.Name),
+		Count:          len(servers),
+		Zone:           fi.String(server.Zone.String()),
+		CommercialType: fi.String(server.CommercialType),
+		Image:          s.Image, // image label is lost by server api
+		Tags:           server.Tags,
+		UserData:       s.UserData, // TODO(Mia-Cross): get from instance or ignore change
+		Lifecycle:      s.Lifecycle,
+		Network:        s.Network,
 	}, nil
 }
 
-func (d *Instance) Run(c *fi.Context) error {
-	return fi.DefaultDeltaRunMethod(d, c)
+func (s *Instance) Run(c *fi.Context) error {
+	return fi.DefaultDeltaRunMethod(s, c)
 }
 
 func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	cloud := c.Cloud.(scaleway.ScwCloud)
+	instanceService := cloud.InstanceService()
+	zone := scw.Zone(fi.StringValue(e.Zone))
+
+	//if a != nil {
+	//	// Add "kops.k8s.io/needs-update" label to servers needing update
+	//	if a.NeedsUpdate == true {
+	//		servers, err := cloud.GetClusterServers(cloud.ClusterName(), a.Name)
+	//		if err != nil {
+	//			return fmt.Errorf("error rendering server group: error listing existing servers: %w", err)
+	//		}
+	//		for _, server := range servers {
+	//			_, err = instanceService.UpdateServer(&instance.UpdateServerRequest{
+	//				Zone:     zone,
+	//				ServerID: server.ID,
+	//				Tags:     scw.StringsPtr(append(server.Tags, scaleway.TagNeedsUpdate)),
+	//			})
+	//			if err != nil {
+	//				return fmt.Errorf("error rendering server group: error adding update tag to server %q (%s): %w", server.Name, server.ID, err)
+	//			}
+	//		}
+	//	}
+	//}
 
 	userData, err := fi.ResourceAsBytes(*e.UserData)
 	if err != nil {
@@ -99,14 +112,24 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		}
 
 		if actualCount > expectedCount {
-			return errors.New("deleting instances is not supported yet")
+			igInstances, err := cloud.GetClusterServers(cloud.ClusterName(a.Tags), a.Name)
+			if err != nil {
+				return fmt.Errorf("error listing instances named %s", fi.StringValue(a.Name))
+			}
+			for _, igInstance := range igInstances {
+				err = cloud.DeleteServer(igInstance)
+				if err != nil {
+					return fmt.Errorf("error deleting instance %s of group %s", igInstance.ID, igInstance.Name)
+				}
+				actualCount--
+				if expectedCount == actualCount {
+					break
+				}
+			}
 		}
 
 		newInstanceCount = expectedCount - actualCount
 	}
-
-	instanceService := cloud.InstanceService()
-	zone := scw.Zone(fi.StringValue(e.Zone))
 
 	pn, err := cloud.GetClusterVPCs(c.Cluster.Name)
 	if err != nil {

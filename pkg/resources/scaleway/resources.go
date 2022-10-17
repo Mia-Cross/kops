@@ -141,7 +141,7 @@ func listLoadBalancers(cloud fi.Cloud, clusterName string) ([]*resources.Resourc
 
 func listServers(cloud fi.Cloud, clusterName string) ([]*resources.Resource, error) {
 	c := cloud.(scaleway.ScwCloud)
-	servers, err := c.GetClusterServers(clusterName)
+	servers, err := c.GetClusterServers(clusterName, nil)
 	if err != nil {
 		return nil, err
 	}
