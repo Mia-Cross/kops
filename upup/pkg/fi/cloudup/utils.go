@@ -164,14 +164,14 @@ func BuildCloud(cluster *kops.Cluster) (fi.Cloud, error) {
 		}
 	case kops.CloudProviderScaleway:
 		{
-			region, zone, err := scaleway.FindRegionAndZone(cluster)
-			if err != nil {
-				return nil, err
-			}
+			//region, zone, err := scaleway.FindRegionAndZone(cluster)
+			//if err != nil {
+			//	return nil, err
+			//}
 
 			cloudTags := map[string]string{scaleway.TagClusterName: cluster.ObjectMeta.Name}
 
-			scwCloud, err := scaleway.NewScwCloud(region, zone, cloudTags)
+			scwCloud, err := scaleway.NewScwCloud(cloudTags)
 			if err != nil {
 				return nil, fmt.Errorf("error initializing scaleway cloud: %s", err)
 			}

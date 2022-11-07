@@ -5,9 +5,7 @@ import (
 	"fmt"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
-	"github.com/scaleway/scaleway-sdk-go/api/vpcgw/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
-	"k8s.io/klog/v2"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
 	_ "k8s.io/kops/upup/pkg/fi/cloudup/terraform"
@@ -24,8 +22,8 @@ type Instance struct {
 	Tags           []string
 	Count          int
 	UserData       *fi.Resource
-	Network        *Network
-	NeedsUpdate    bool
+	//Network        *Network
+	NeedsUpdate bool
 }
 
 var _ fi.Task = &Instance{}
@@ -62,7 +60,7 @@ func (s *Instance) Find(c *fi.Context) (*Instance, error) {
 		Tags:           server.Tags,
 		UserData:       s.UserData, // TODO(Mia-Cross): get from instance or ignore change
 		Lifecycle:      s.Lifecycle,
-		Network:        s.Network,
+		//Network:        s.Network,
 	}, nil
 }
 
@@ -131,13 +129,13 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		newInstanceCount = expectedCount - actualCount
 	}
 
-	pn, err := cloud.GetClusterVPCs(c.Cluster.Name)
-	if err != nil {
-		return fmt.Errorf("error listing private networks: %v", err)
-	}
-	if len(pn) != 1 {
-		return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
-	}
+	//pn, err := cloud.GetClusterVPCs(c.Cluster.Name)
+	//if err != nil {
+	//	return fmt.Errorf("error listing private networks: %v", err)
+	//}
+	//if len(pn) != 1 {
+	//	return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
+	//}
 
 	for i := 0; i < newInstanceCount; i++ {
 
@@ -157,16 +155,6 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		_, err = scaleway.WaitForInstanceServer(instanceService, zone, srv.Server.ID)
 		if err != nil {
 			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
-		}
-
-		// We add the tags to the volume of the instance to be able to delete it later
-		_, err = instanceService.UpdateVolume(&instance.UpdateVolumeRequest{
-			Zone:     zone,
-			VolumeID: srv.Server.Volumes["0"].ID,
-			Tags:     &e.Tags,
-		})
-		if err != nil {
-			return fmt.Errorf("error addings tags to volume for instance %s: %s", fi.StringValue(e.Name), err)
 		}
 
 		// We load the cloud-init script in the instance user data
@@ -197,67 +185,67 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		}
 
 		// We put the instance inside the private network
-		pNIC, err := instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
-			Zone:             zone,
-			ServerID:         srv.Server.ID,
-			PrivateNetworkID: pn[0].ID,
-		})
-		if err != nil {
-			return fmt.Errorf("error linking instance to private network: %v", err)
-		}
-
-		// We wait for the private nic to be ready before proceeding
-		_, err = instanceService.WaitForPrivateNIC(&instance.WaitForPrivateNICRequest{
-			ServerID:     srv.Server.ID,
-			PrivateNicID: pNIC.PrivateNic.ID,
-			Zone:         zone,
-		})
-		if err != nil {
-			return fmt.Errorf("error waiting for private nic: %v", err)
-		}
+		//pNIC, err := instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
+		//	Zone:             zone,
+		//	ServerID:         srv.Server.ID,
+		//	PrivateNetworkID: pn[0].ID,
+		//})
+		//if err != nil {
+		//	return fmt.Errorf("error linking instance to private network: %v", err)
+		//}
+		//
+		//// We wait for the private nic to be ready before proceeding
+		//_, err = instanceService.WaitForPrivateNIC(&instance.WaitForPrivateNICRequest{
+		//	ServerID:     srv.Server.ID,
+		//	PrivateNicID: pNIC.PrivateNic.ID,
+		//	Zone:         zone,
+		//})
+		//if err != nil {
+		//	return fmt.Errorf("error waiting for private nic: %v", err)
+		//}
 	}
 
-	gwService := cloud.GatewayService()
-	rules := []*vpcgw.SetPATRulesRequestRule(nil)
-	port := uint32(2022)
+	//gwService := cloud.GatewayService()
+	//rules := []*vpcgw.SetPATRulesRequestRule(nil)
+	//port := uint32(2022)
 
 	// We create NAT rules linking the gateway to our instances in order to be able to connect via SSH
-	// TODO(Mia-Cross): This part is for dev purposes only, remove when done
-	gwNetwork, err := cloud.GetClusterGatewayNetworks(pn[0].ID)
-	if err != nil {
-		return err
-	}
-	if len(gwNetwork) < 1 {
-		klog.V(4).Infof("Could not find any gateway connexion, skipping NAT rules creation")
-	} else {
-		entries, err := gwService.ListDHCPEntries(&vpcgw.ListDHCPEntriesRequest{
-			Zone:             zone,
-			GatewayNetworkID: scw.StringPtr(gwNetwork[0].ID),
-		}, scw.WithAllPages())
-		if err != nil {
-			return fmt.Errorf("error listing DHCP entries")
-		}
-		klog.V(4).Infof("=== DHCP entries are %v", entries.DHCPEntries)
-		for _, entry := range entries.DHCPEntries {
-			rules = append(rules, &vpcgw.SetPATRulesRequestRule{
-				PublicPort:  port,
-				PrivateIP:   entry.IPAddress,
-				PrivatePort: 22,
-				Protocol:    "both",
-			})
-			port += 1
-		}
-
-		_, err = gwService.SetPATRules(&vpcgw.SetPATRulesRequest{
-			Zone:      zone,
-			GatewayID: gwNetwork[0].GatewayID,
-			PatRules:  rules,
-		})
-		if err != nil {
-			return fmt.Errorf("error setting PAT rules for gateway")
-		}
-		klog.V(4).Infof("=== rules set")
-	}
+	//// TODO(Mia-Cross): This part is for dev purposes only, remove when done
+	//gwNetwork, err := cloud.GetClusterGatewayNetworks(pn[0].ID)
+	//if err != nil {
+	//	return err
+	//}
+	//if len(gwNetwork) < 1 {
+	//	klog.V(4).Infof("Could not find any gateway connexion, skipping NAT rules creation")
+	//} else {
+	//	entries, err := gwService.ListDHCPEntries(&vpcgw.ListDHCPEntriesRequest{
+	//		Zone:             zone,
+	//		GatewayNetworkID: scw.StringPtr(gwNetwork[0].ID),
+	//	}, scw.WithAllPages())
+	//	if err != nil {
+	//		return fmt.Errorf("error listing DHCP entries")
+	//	}
+	//	klog.V(4).Infof("=== DHCP entries are %v", entries.DHCPEntries)
+	//	for _, entry := range entries.DHCPEntries {
+	//		rules = append(rules, &vpcgw.SetPATRulesRequestRule{
+	//			PublicPort:  port,
+	//			PrivateIP:   entry.IPAddress,
+	//			PrivatePort: 22,
+	//			Protocol:    "both",
+	//		})
+	//		port += 1
+	//	}
+	//
+	//	_, err = gwService.SetPATRules(&vpcgw.SetPATRulesRequest{
+	//		Zone:      zone,
+	//		GatewayID: gwNetwork[0].GatewayID,
+	//		PatRules:  rules,
+	//	})
+	//	if err != nil {
+	//		return fmt.Errorf("error setting PAT rules for gateway")
+	//	}
+	//	klog.V(4).Infof("=== rules set")
+	//}
 	return nil
 }
 

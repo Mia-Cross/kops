@@ -1,9 +1,9 @@
 echo "--> DNS RECORDS :"
-scw dns record list scaleway-terraform.com -p devterraform
+scw dns record list leila.sieben.fr
 echo "\n--> LOAD - BALANCERS :"
-scw lb lb list zone=fr-par-1 -p devterraform
+scw lb lb list zone=fr-par-1
 echo "\n--> SERVERS :"
-scw instance server list zone=fr-par-2 -p devterraform
+scw instance server list zone=fr-par-1
 echo "\n--> VOLUMES :"
-scw instance volume list zone=fr-par-2 -p devterraform                                                                                        etcd-2.etcd-main.kops.scaleway-terraform.com    105bdce1-64c0-48ab-899d-868455867ecf
+scw instance volume list zone=fr-par-1
 

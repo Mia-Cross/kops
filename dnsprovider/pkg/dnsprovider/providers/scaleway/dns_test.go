@@ -2,13 +2,13 @@ package dns
 
 import (
 	"context"
+	"os"
 	"testing"
-
-	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
-	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
 
 	domain "github.com/scaleway/scaleway-sdk-go/api/domain/v2beta1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
+	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
+	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
 )
 
 const (
@@ -17,6 +17,10 @@ const (
 )
 
 func createValidTestClient(t *testing.T) *scw.Client {
+	err := os.Setenv("SCW_DNS_ZONE", validDNSZone)
+	if err != nil {
+		t.Errorf("error setting DNS_ZONE in environment: %v", err)
+	}
 	config, _ := scw.LoadConfig()
 	profile := config.Profiles[validScalewayProfileName]
 	client, err := scw.NewClient(scw.WithProfile(profile))
@@ -34,8 +38,8 @@ func createInvalidTestClient(t *testing.T) *scw.Client {
 	return client
 }
 
-func getDNSProviderZones(client *scw.Client, domainName string) dnsprovider.Zones {
-	dnsProvider := NewProvider(client, domainName)
+func getDNSProviderZones(client *scw.Client) dnsprovider.Zones {
+	dnsProvider := NewProvider(client)
 	zs, _ := dnsProvider.Zones()
 	return zs
 }
@@ -74,7 +78,7 @@ func TestZonesListShouldFail(t *testing.T) {
 
 func TestAddValid(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, validDNSZone)
+	zs := getDNSProviderZones(client)
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	outZone, err := zs.Add(inZone)
@@ -92,7 +96,8 @@ func TestAddValid(t *testing.T) {
 
 func TestAddShouldFail(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "invalid.domain")
+	err := os.Setenv("SCW_DNS_ZONE", "invalid.domain")
+	zs := getDNSProviderZones(client)
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	outZone, err := zs.Add(inZone)
@@ -107,7 +112,7 @@ func TestAddShouldFail(t *testing.T) {
 
 func TestRemoveValid(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, validDNSZone)
+	zs := getDNSProviderZones(client)
 
 	inZone := &zone{name: "kops-dns-test", client: client}
 	err := zs.Remove(inZone)
@@ -119,10 +124,11 @@ func TestRemoveValid(t *testing.T) {
 
 func TestRemoveShouldFail(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, "invalid.domain")
+	err := os.Setenv("SCW_DNS_ZONE", "invalid.domain")
+	zs := getDNSProviderZones(client)
 
 	inZone := &zone{name: "kops-dns-test", client: client}
-	err := zs.Remove(inZone)
+	err = zs.Remove(inZone)
 
 	if err == nil {
 		t.Errorf("expected non-nil err: %v", err)
@@ -131,7 +137,7 @@ func TestRemoveShouldFail(t *testing.T) {
 
 func TestNewZone(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, validDNSZone)
+	zs := getDNSProviderZones(client)
 
 	zone, err := zs.New("kops-dns-test")
 
@@ -149,7 +155,7 @@ func TestNewZone(t *testing.T) {
 
 func TestNewResourceRecordSet(t *testing.T) {
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, validDNSZone)
+	zs := getDNSProviderZones(client)
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
 		DNSZone: validDNSZone,
@@ -218,6 +224,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 		t.Errorf("unexpected resource record type: %s, expected %s", records[0].Type(), rrstype.A)
 	}
 
+	// Cleaning up created zones
 	for _, id := range recordsIds {
 		err = deleteRecord(client, validDNSZone, id)
 		if err != nil {
@@ -229,7 +236,7 @@ func TestNewResourceRecordSet(t *testing.T) {
 func TestResourceRecordChangeset(t *testing.T) {
 	ctx := context.Background()
 	client := createValidTestClient(t)
-	zs := getDNSProviderZones(client, validDNSZone)
+	zs := getDNSProviderZones(client)
 
 	recordsIds, err := createRecord(client, &domain.UpdateDNSZoneRecordsRequest{
 		DNSZone: validDNSZone,
@@ -300,10 +307,6 @@ func TestResourceRecordChangeset(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
 	}
-	records, err = rrset.Get("to-add." + validDNSZone)
-	if err != nil {
-		t.Errorf("unexpected error getting resource record set: %v", err)
-	}
 	records, err = rrset.Get("to-upsert." + validDNSZone)
 	if err != nil {
 		t.Errorf("unexpected error getting resource record set: %v", err)
@@ -315,11 +318,28 @@ func TestResourceRecordChangeset(t *testing.T) {
 	if records != nil {
 		t.Errorf("record set 'to-remove' should have been deleted")
 	}
+	records, err = rrset.Get("to-add." + validDNSZone)
+	if err != nil {
+		t.Errorf("unexpected error getting resource record set: %v", err)
+	}
 
+	// Cleaning up created zones
+	api := domain.NewAPI(client)
+	addedRecords, err := api.ListDNSZoneRecords(&domain.ListDNSZoneRecordsRequest{
+		DNSZone: validDNSZone,
+		Name:    records[0].Name(),
+	})
+	for _, addedRecord := range addedRecords.Records {
+		err = deleteRecord(client, validDNSZone, addedRecord.ID)
+		if err != nil {
+			t.Errorf("error deleting record: %v", err)
+		}
+	}
 	for _, id := range recordsIds {
 		err = deleteRecord(client, validDNSZone, id)
 		if err != nil {
 			t.Errorf("error deleting record: %v", err)
 		}
 	}
+
 }

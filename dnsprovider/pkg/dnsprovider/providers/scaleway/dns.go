@@ -319,49 +319,83 @@ func (r *resourceRecordChangeset) Apply(ctx context.Context) error {
 	}
 
 	klog.V(2).Info("applying changes in record change set")
+	updateRecordsRequest := []*domain.RecordChange(nil)
+	dnsZone := os.Getenv("SCW_DNS_ZONE")
+	api := domain.NewAPI(r.client)
+
+	records, err := getRecords(r.client, r.zone.Name())
+	if err != nil {
+		return err
+	}
 
 	if len(r.additions) > 0 {
+		recordsToAdd := []*domain.Record(nil)
 		for _, rrset := range r.additions {
-			klog.V(8).Infof("adding new DNS record %s to zone %s", rrset.Name(), r.zone.name)
-			err := r.applyResourceRecordSet(rrset)
-			if err != nil {
-				return fmt.Errorf("failed to apply resource record set: %s, err: %s", rrset.Name(), err)
+			for _, rrdata := range rrset.Rrdatas() {
+				recordsToAdd = append(recordsToAdd, &domain.Record{
+					Name: rrset.Name(),
+					Data: rrdata,
+					TTL:  uint32(rrset.Ttl()),
+					Type: domain.RecordType(rrset.Type()),
+				})
 			}
-			klog.V(4).Infof("added new DNS record %s to zone %s", rrset.Name(), r.zone.name)
+			klog.V(8).Infof("adding new DNS record %s to zone %s", rrset.Name(), r.zone.name)
+			updateRecordsRequest = append(updateRecordsRequest, &domain.RecordChange{
+				Add: &domain.RecordChangeAdd{
+					Records: recordsToAdd,
+				},
+			})
 		}
-
-		klog.V(2).Info("record change set additions complete")
 	}
 
 	if len(r.upserts) > 0 {
 		for _, rrset := range r.upserts {
-			err := r.applyResourceRecordSet(rrset)
-			if err != nil {
-				return fmt.Errorf("failed to apply resource record set: %s, err: %s", rrset.Name(), err)
-			}
-		}
-
-		klog.V(2).Info("record change set upserts complete")
-	}
-
-	if len(r.removals) > 0 {
-		records, err := getRecords(r.client, r.zone.Name())
-		if err != nil {
-			return err
-		}
-
-		for _, record := range r.removals {
-			for _, domainRecord := range records {
-				if domainRecord.Name == record.Name() {
-					err := deleteRecord(r.client, r.zone.Name(), domainRecord.ID)
-					if err != nil {
-						return fmt.Errorf("failed to delete record: %v", err)
+			for _, rrdata := range rrset.Rrdatas() {
+				for _, record := range records {
+					klog.Infof("comparing %q | %q", fmt.Sprintf("%s.%s.", record.Name, r.zone.name), rrset.Name())
+					if fmt.Sprintf("%s.%s.", record.Name, r.zone.name) == rrset.Name() {
+						klog.V(8).Infof("changing DNS record %s of zone %s", rrset.Name(), r.zone.name)
+						updateRecordsRequest = append(updateRecordsRequest, &domain.RecordChange{
+							Set: &domain.RecordChangeSet{
+								ID: &record.ID,
+								Records: []*domain.Record{
+									{
+										Name: rrset.Name(),
+										Data: rrdata,
+										TTL:  uint32(rrset.Ttl()),
+										Type: domain.RecordType(rrset.Type()),
+									},
+								},
+							},
+						})
 					}
 				}
 			}
 		}
+	}
 
-		klog.V(2).Info("record change set removals complete")
+	if len(r.removals) > 0 {
+		for _, rrset := range r.removals {
+			for _, record := range records {
+				if record.Name == rrset.Name() && record.Data == rrset.Rrdatas()[0] {
+					klog.V(8).Infof("removing DNS record %s of zone %s", rrset.Name(), r.zone.name)
+					updateRecordsRequest = append(updateRecordsRequest, &domain.RecordChange{
+						Delete: &domain.RecordChangeDelete{
+							ID: &record.ID,
+						},
+					})
+				}
+
+			}
+		}
+	}
+
+	_, err = api.UpdateDNSZoneRecords(&domain.UpdateDNSZoneRecordsRequest{
+		DNSZone: dnsZone,
+		Changes: updateRecordsRequest,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to apply resource record set: %w", err)
 	}
 
 	klog.V(2).Info("record change sets successfully applied")
@@ -380,55 +414,6 @@ func (r *resourceRecordChangeset) IsEmpty() bool {
 // ResourceRecordSets returns the associated resourceRecordSets of a changeset
 func (r *resourceRecordChangeset) ResourceRecordSets() dnsprovider.ResourceRecordSets {
 	return r.rrsets
-}
-
-// applyResourceRecordSet will create records of a domain as required by resourceRecordChangeset
-// and delete any previously created records matching the same name.
-// This is required for scaleway since it's API does not handle record sets, but
-// only individual records
-func (r *resourceRecordChangeset) applyResourceRecordSet(rrset dnsprovider.ResourceRecordSet) error {
-	deleteRecords, err := getRecordsByName(r.client, r.zone.Name(), rrset.Name())
-	if err != nil {
-		return fmt.Errorf("failed to get record IDs to delete")
-	}
-
-	addRecords := []*domain.Record(nil)
-
-	for range rrset.Rrdatas() {
-		for _, rrdata := range rrset.Rrdatas() {
-			addRecords = append(addRecords, &domain.Record{
-				Name: rrset.Name(),
-				Data: rrdata,
-				TTL:  uint32(rrset.Ttl()),
-				Type: domain.RecordType(rrset.Type()),
-			})
-		}
-	}
-
-	recordCreateRequest := &domain.UpdateDNSZoneRecordsRequest{
-		DNSZone: os.Getenv("SCW_DNS_ZONE"),
-		Changes: []*domain.RecordChange{
-			{
-				Add: &domain.RecordChangeAdd{
-					Records: addRecords,
-				},
-			},
-		},
-	}
-
-	_, err = createRecord(r.client, recordCreateRequest)
-	if err != nil {
-		return fmt.Errorf("could not create record: %v", err)
-	}
-
-	for _, record := range deleteRecords {
-		err = deleteRecord(r.client, r.zone.Name(), record.ID)
-		if err != nil {
-			return fmt.Errorf("error cleaning up old records: %v", err)
-		}
-	}
-
-	return nil
 }
 
 // listDomains returns a list of scaleway Domain objects
@@ -474,7 +459,7 @@ func deleteDomain(c *scw.Client, name string) error {
 	return nil
 }
 
-// getRecords returns a list of scaleway given a zone name
+// getRecords returns a list of scaleway records given a zone name (the name of the record doesn't end with the zone name)
 func getRecords(c *scw.Client, zoneName string) ([]*domain.Record, error) {
 	api := domain.NewAPI(c)
 
@@ -488,20 +473,20 @@ func getRecords(c *scw.Client, zoneName string) ([]*domain.Record, error) {
 	return records.Records, err
 }
 
-// getRecordsByName returns a list of domain Records based on the provided zone and name
-func getRecordsByName(client *scw.Client, zoneName, recordName string) ([]*domain.Record, error) {
-	api := domain.NewAPI(client)
-
-	records, err := api.ListDNSZoneRecords(&domain.ListDNSZoneRecordsRequest{
-		DNSZone: zoneName,
-		Name:    recordName,
-	}, scw.WithAllPages())
-	if err != nil {
-		return nil, fmt.Errorf("failed to list records: %v", err)
-	}
-
-	return records.Records, err
-}
+//// getRecordsByName returns a list of domain Records based on the provided zone and name
+//func getRecordsByName(client *scw.Client, zoneName, recordName string) ([]*domain.Record, error) {
+//	api := domain.NewAPI(client)
+//
+//	records, err := api.ListDNSZoneRecords(&domain.ListDNSZoneRecordsRequest{
+//		DNSZone: zoneName,
+//		Name:    recordName,
+//	}, scw.WithAllPages())
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to list records: %v", err)
+//	}
+//
+//	return records.Records, err
+//}
 
 // createRecord creates a record given an associated zone and an UpdateDNSZoneRecordsRequest
 func createRecord(c *scw.Client, recordsCreateRequest *domain.UpdateDNSZoneRecordsRequest) ([]string, error) {

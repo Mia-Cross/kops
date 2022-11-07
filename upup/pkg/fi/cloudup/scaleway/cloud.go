@@ -2,6 +2,7 @@ package scaleway
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -23,9 +24,10 @@ import (
 )
 
 const (
+	TagClusterName           = "kops.k8s.io/cluster"
+	KopsUserAgentPrefix      = "kubernetes-kops/"
 	TagNameEtcdClusterPrefix = "k8s.io/etcd/"
 	TagNameRolePrefix        = "k8s.io/role/"
-	TagClusterName           = "KubernetesCluster"
 	TagRoleMaster            = "master"
 	TagInstanceGroup         = "instance-group"
 	TagRoleVolume            = "volume"
@@ -94,14 +96,36 @@ type scwCloudImplementation struct {
 }
 
 // NewScwCloud returns a Cloud, using the env vars SCW_ACCESS_KEY and SCW_SECRET_KEY
-func NewScwCloud(region, zone string, tags map[string]string) (ScwCloud, error) {
+func NewScwCloud(tags map[string]string) (ScwCloud, error) {
+	region, err := scw.ParseRegion(os.Getenv("SCW_DEFAULT_REGION"))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing SCW_DEFAULT_REGION: %w", err)
+	}
+	zone, err := scw.ParseZone(os.Getenv("SCW_DEFAULT_ZONE"))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing SCW_DEFAULT_ZONE: %w", err)
+	}
+
+	// We make sure that the credentials env vars are defined
+	scwAccessKey := os.Getenv("SCW_ACCESS_KEY")
+	if scwAccessKey == "" {
+		return nil, fmt.Errorf("SCW_ACCESS_KEY has to be set as an environment variable")
+	}
+	scwSecretKey := os.Getenv("SCW_SECRET_KEY")
+	if scwSecretKey == "" {
+		return nil, fmt.Errorf("SCW_SECRET_KEY has to be set as an environment variable")
+	}
+	scwProjectID := os.Getenv("SCW_DEFAULT_PROJECT_ID")
+	if scwProjectID == "" {
+		return nil, fmt.Errorf("SCW_DEFAULT_PROJECT_ID has to be set as an environment variable")
+	}
+
 	scwClient, err := scw.NewClient(
 		scw.WithUserAgent("kubernetes-kops/"+kopsv.Version),
 		scw.WithEnv(),
 	)
 	if err != nil {
-		return nil, err
-		// TODO: check if error is explicit enough when credentials are missing
+		return nil, fmt.Errorf("error building client for Scaleway Cloud: %w", err)
 	}
 
 	return &scwCloudImplementation{
@@ -172,50 +196,45 @@ func (s *scwCloudImplementation) VPCService() *vpc.API {
 	return s.vpcAPI
 }
 
-// FindVPCInfo is not implemented yet, it's only here to satisfy the fi.Cloud interface
+// FindVPCInfo looks up the specified VPC by id, returning info if found, otherwise (nil, nil).
 func (s *scwCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
 	klog.V(8).Info("scaleway cloud provider FindVPCInfo not implemented yet")
 	return nil, fmt.Errorf("scaleway cloud provider does not support vpc at this time")
 }
 
 func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance) error {
-	// reach stopped state
-	err := reachState(s.instanceAPI, s.zone, i.ID, instance.ServerStateStopped)
-	if is404Error(err) {
-		klog.V(8).Info("delete instance %s: instance was already deleted", i.ID)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("delete instance %s: error reaching stopped state: %w", i.ID, err)
-	}
-
-	_, err = WaitForInstanceServer(s.instanceAPI, s.zone, i.ID)
-	if err != nil {
-		return fmt.Errorf("delete instance %s: error waiting for instance: %w", i.ID, err)
-	}
-
-	err = s.instanceAPI.DeleteServer(&instance.DeleteServerRequest{
+	server, err := s.instanceAPI.GetServer(&instance.GetServerRequest{
 		Zone:     s.zone,
 		ServerID: i.ID,
 	})
-	if err != nil && !is404Error(err) {
-		return fmt.Errorf("error deleting instance %s: %w", i.ID, err)
+	if err != nil {
+		if is404Error(err) {
+			klog.V(4).Infof("error deleting cloud instance %s of group %s : instance was already deleted", i.ID, i.CloudInstanceGroup.HumanName)
+			return nil
+		}
+		return fmt.Errorf("error deleting cloud instance %s of group %s: %w", i.ID, i.CloudInstanceGroup.HumanName, err)
 	}
 
-	_, err = WaitForInstanceServer(s.instanceAPI, s.zone, i.ID)
-	if err != nil && !is404Error(err) {
-		return fmt.Errorf("delete instance %s: error waiting for instance: %w", i.ID, err)
+	err = s.DeleteServer(server.Server)
+	if err != nil {
+		return fmt.Errorf("error deleting cloud instance %s of group %s: %w", i.ID, i.CloudInstanceGroup.HumanName, err)
 	}
 
 	return nil
 }
 
+// DeregisterInstance drains a cloud instance and load-balancers.
 func (s *scwCloudImplementation) DeregisterInstance(i *cloudinstances.CloudInstance) error {
 	//TODO(Mia-Cross) implement me
 	panic("implement me")
 }
 
+// DeleteGroup deletes the cloud resources that make up a CloudInstanceGroup, including the instances.
 func (s *scwCloudImplementation) DeleteGroup(group *cloudinstances.CloudInstanceGroup) error {
+	if group.InstanceGroup.IsMaster() {
+		//group.InstanceGroup.
+	}
+
 	toDelete := append(group.NeedUpdate, group.Ready...)
 	for _, cloudInstance := range toDelete {
 		err := s.DeleteInstance(cloudInstance)
@@ -226,11 +245,31 @@ func (s *scwCloudImplementation) DeleteGroup(group *cloudinstances.CloudInstance
 	return nil
 }
 
+// DetachInstance causes a cloud instance to no longer be counted against the group's size limits.
 func (s *scwCloudImplementation) DetachInstance(i *cloudinstances.CloudInstance) error {
-	//TODO(Mia-Cross) implement me
-	panic("implement me")
+	cloudIG := i.CloudInstanceGroup
+	newReadyInstances := []*cloudinstances.CloudInstance(nil)
+	found := false
+
+	for _, cloudInstance := range cloudIG.Ready {
+		if cloudInstance.ID != i.ID {
+			newReadyInstances = append(newReadyInstances, cloudInstance)
+		} else {
+			found = true
+			cloudIG.NeedUpdate = append(cloudIG.NeedUpdate, cloudInstance)
+			klog.V(4).Infof("Detached instance %s from group %q", i.ID, cloudIG.HumanName)
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("could not detach instance %s from group %q: not found in CloudInstanceGroup.Ready", i.ID, cloudIG.HumanName)
+	}
+	return nil
+
 }
 
+// GetCloudGroups returns a map of cloud instances that back a kops cluster.
+// Detached instances must be returned in the NeedUpdate slice.
 func (s *scwCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error) {
 	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
 
@@ -241,24 +280,18 @@ func (s *scwCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instanceg
 		return nil, fmt.Errorf("failed to find server groups: %w", err)
 	}
 
-	for igName, serverGroup := range serverGroups {
-		var instanceGroup *kops.InstanceGroup
-		for _, ig := range instancegroups {
-			if igName == ig.Name {
-				instanceGroup = ig
-				break
-			}
-		}
-		if instanceGroup == nil {
+	for _, ig := range instancegroups {
+		serverGroup, ok := serverGroups[ig.Name]
+		if !ok {
 			if warnUnmatched {
-				klog.Warningf("Server group %q has no corresponding instance group", igName)
+				klog.Warningf("Server group %q has no corresponding instance group", ig.Name)
 			}
 			continue
 		}
 
-		groups[instanceGroup.Name], err = buildCloudGroup(instanceGroup, serverGroup, nodeMap)
+		groups[ig.Name], err = buildCloudGroup(ig, serverGroup, nodeMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build cloud group for instance group %q: %w", instanceGroup.Name, err)
+			return nil, fmt.Errorf("failed to build cloud group for instance group %q: %w", ig.Name, err)
 		}
 	}
 
@@ -504,6 +537,17 @@ func (s *scwCloudImplementation) DeleteGateway(gateway *vpcgw.Gateway) error {
 		return fmt.Errorf("failed to delete gateway %s: %w", gateway.ID, err)
 	}
 
+	// We wait for the gateway to be deleted
+	for {
+		_, err := s.gatewayAPI.GetGateway(&vpcgw.GetGatewayRequest{
+			Zone:      s.zone,
+			GatewayID: gateway.ID,
+		})
+		if is404Error(err) {
+			break
+		}
+	}
+
 	return nil
 }
 
@@ -575,11 +619,11 @@ func (s *scwCloudImplementation) DeleteServer(server *instance.Server) error {
 	}
 
 	// If instance is running, we turn it off
-	if srv.Server.State == "running" {
+	if srv.Server.State == instance.ServerStateRunning {
 		_, err := s.instanceAPI.ServerAction(&instance.ServerActionRequest{
 			Zone:     s.zone,
 			ServerID: server.ID,
-			Action:   "poweroff",
+			Action:   instance.ServerActionPoweroff,
 		})
 		if err != nil {
 			return fmt.Errorf("delete instance %s: error powering off instance: %w", server.ID, err)

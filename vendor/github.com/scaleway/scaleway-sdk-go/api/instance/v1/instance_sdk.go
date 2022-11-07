@@ -576,6 +576,10 @@ const (
 	SnapshotStateError = SnapshotState("error")
 	// SnapshotStateInvalidData is [insert doc].
 	SnapshotStateInvalidData = SnapshotState("invalid_data")
+	// SnapshotStateImporting is [insert doc].
+	SnapshotStateImporting = SnapshotState("importing")
+	// SnapshotStateExporting is [insert doc].
+	SnapshotStateExporting = SnapshotState("exporting")
 )
 
 func (enum SnapshotState) String() string {
@@ -917,6 +921,22 @@ type Dashboard struct {
 	SecurityGroupsCount uint32 `json:"security_groups_count"`
 
 	IPsUnused uint32 `json:"ips_unused"`
+
+	VolumesLSSDCount uint32 `json:"volumes_l_ssd_count"`
+
+	VolumesBSSDCount uint32 `json:"volumes_b_ssd_count"`
+
+	VolumesLSSDTotalSize uint32 `json:"volumes_l_ssd_total_size"`
+
+	VolumesBSSDTotalSize uint32 `json:"volumes_b_ssd_total_size"`
+
+	PrivateNicsCount uint32 `json:"private_nics_count"`
+
+	PlacementGroupsCount uint32 `json:"placement_groups_count"`
+}
+
+type ExportSnapshotResponse struct {
+	Task *Task `json:"task"`
 }
 
 type GetBootscriptResponse struct {
@@ -1420,6 +1440,16 @@ type ServerType struct {
 	Baremetal bool `json:"baremetal"`
 	// Network: network available for the instance
 	Network *ServerTypeNetwork `json:"network"`
+	// Capabilities: capabilities
+	Capabilities *ServerTypeCapabilities `json:"capabilities"`
+}
+
+// ServerTypeCapabilities: server type. capabilities
+type ServerTypeCapabilities struct {
+	// BlockStorage: true if server supports block storage
+	BlockStorage *bool `json:"block_storage"`
+	// BootTypes: list of supported boot types
+	BootTypes []BootType `json:"boot_types"`
 }
 
 // ServerTypeNetwork: server type. network
@@ -1528,6 +1558,8 @@ type Snapshot struct {
 	ModificationDate *time.Time `json:"modification_date"`
 	// Zone: the snapshot zone
 	Zone scw.Zone `json:"zone"`
+	// ErrorReason: the reason for the failed snapshot import
+	ErrorReason *string `json:"error_reason"`
 }
 
 // SnapshotBaseVolume: snapshot. base volume
@@ -2947,7 +2979,7 @@ type CreateSnapshotRequest struct {
 	// Name: name of the snapshot
 	Name string `json:"name,omitempty"`
 	// VolumeID: UUID of the volume
-	VolumeID string `json:"volume_id,omitempty"`
+	VolumeID *string `json:"volume_id,omitempty"`
 	// Tags: the tags of the snapshot
 	Tags []string `json:"tags,omitempty"`
 	// Deprecated: Organization: organization ID of the snapshot
@@ -2963,9 +2995,15 @@ type CreateSnapshotRequest struct {
 	//
 	// Default value: unknown_volume_type
 	VolumeType SnapshotVolumeType `json:"volume_type"`
+	// Bucket: bucket name for snapshot imports
+	Bucket *string `json:"bucket,omitempty"`
+	// Key: object key for snapshot imports
+	Key *string `json:"key,omitempty"`
+	// Size: imported snapshot size, must be a multiple of 512
+	Size *scw.Size `json:"size,omitempty"`
 }
 
-// CreateSnapshot: create a snapshot from a given volume
+// CreateSnapshot: create a snapshot from a given volume or from a QCOW2 file
 func (s *API) CreateSnapshot(req *CreateSnapshotRequest, opts ...scw.RequestOption) (*CreateSnapshotResponse, error) {
 	var err error
 
@@ -3178,6 +3216,58 @@ func (s *API) DeleteSnapshot(req *DeleteSnapshotRequest, opts ...scw.RequestOpti
 		return err
 	}
 	return nil
+}
+
+type ExportSnapshotRequest struct {
+	// Zone:
+	//
+	// Zone to target. If none is passed will use default zone from the config
+	Zone scw.Zone `json:"-"`
+	// SnapshotID: the snapshot ID
+	SnapshotID string `json:"-"`
+	// Bucket: s3 bucket name
+	Bucket string `json:"bucket,omitempty"`
+	// Key: s3 object key
+	Key string `json:"key,omitempty"`
+}
+
+// ExportSnapshot: export a snapshot
+//
+// Export a snapshot to a given S3 bucket in the same region.
+func (s *API) ExportSnapshot(req *ExportSnapshotRequest, opts ...scw.RequestOption) (*ExportSnapshotResponse, error) {
+	var err error
+
+	if req.Zone == "" {
+		defaultZone, _ := s.client.GetDefaultZone()
+		req.Zone = defaultZone
+	}
+
+	if fmt.Sprint(req.Zone) == "" {
+		return nil, errors.New("field Zone cannot be empty in request")
+	}
+
+	if fmt.Sprint(req.SnapshotID) == "" {
+		return nil, errors.New("field SnapshotID cannot be empty in request")
+	}
+
+	scwReq := &scw.ScalewayRequest{
+		Method:  "POST",
+		Path:    "/instance/v1/zones/" + fmt.Sprint(req.Zone) + "/snapshots/" + fmt.Sprint(req.SnapshotID) + "/export",
+		Headers: http.Header{},
+	}
+
+	err = scwReq.SetBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp ExportSnapshotResponse
+
+	err = s.client.Do(scwReq, &resp, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 type ListVolumesRequest struct {

@@ -97,5 +97,4 @@ _rundir
 # TODO(Mia-Cross): make this clean before PR#1
 s3:
 zzzs3-state-store
-zzz-dev-Mia-Cross
 .run/

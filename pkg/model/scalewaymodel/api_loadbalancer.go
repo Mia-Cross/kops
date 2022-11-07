@@ -52,10 +52,18 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			scaleway.TagNameRolePrefix + scaleway.TagRoleLoadBalancer, // QUESTION : is this tag useful or not ?
 		},
 	}
+
+	//if b.Cluster.Spec.NetworkID != "" {
+	//	loadBalancer.VPCId = fi.String(b.Cluster.Spec.NetworkID)
+	//} else if b.Cluster.Spec.NetworkCIDR != "" {
+	//	loadBalancer.VPCName = fi.String(b.ClusterName())
+	//	loadBalancer.NetworkCIDR = fi.String(b.Cluster.Spec.NetworkCIDR)
+	//}
+
 	c.AddTask(loadBalancer)
 
 	// Temporarily do not know the role of the following function
-	if dns.IsGossipHostname(b.Cluster.Name) || b.UsePrivateDNS() {
+	if dns.IsGossipClusterName(b.Cluster.Name) || b.UsePrivateDNS() {
 		// Ensure the LB hostname is included in the TLS certificate,
 		// if we're not going to use an alias for it
 		loadBalancer.ForAPIServer = true

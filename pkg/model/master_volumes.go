@@ -388,12 +388,14 @@ func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name 
 	// Scaleway doesn't support volume multi-attach of volumes so we have to create a set of volumes for each instance instead of for each instance group
 	instanceGroup := b.FindInstanceGroup(*m.InstanceGroup)
 	nameSplitted := strings.Split(name, ".etcd-")
+
 	for i := int32(0); i < *instanceGroup.Spec.MinSize; i++ {
+
 		nameWithIndex := fmt.Sprintf("%s[%s].etcd-%s", nameSplitted[0], strconv.Itoa(int(i)), nameSplitted[1])
 		tags := []string{
 			fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.ObjectMeta.Name),
 			scaleway.TagNameEtcdClusterPrefix + etcd.Name,
-			scaleway.TagNameRolePrefix + "master=1",
+			scaleway.TagNameRolePrefix + scaleway.TagRoleMaster + "=1",
 			scaleway.TagInstanceGroup + "=" + fi.StringValue(m.InstanceGroup),
 			scaleway.TagRoleVolume + "=" + etcd.Name,
 		}
