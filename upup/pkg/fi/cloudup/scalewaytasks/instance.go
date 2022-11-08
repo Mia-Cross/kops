@@ -3,8 +3,10 @@ package scalewaytasks
 import (
 	"bytes"
 	"fmt"
+	"os"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
+	"github.com/scaleway/scaleway-sdk-go/api/lb/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
@@ -137,6 +139,8 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	//	return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
 	//}
 
+	mastersPrivateIPs := []string(nil)
+
 	for i := 0; i < newInstanceCount; i++ {
 
 		// We create the instance
@@ -184,6 +188,22 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
 		}
 
+		// We update the server's infos (to get its IP)
+		server, err := instanceService.GetServer(&instance.GetServerRequest{
+			Zone:     zone,
+			ServerID: srv.Server.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("error getting server %s: %s", srv.Server.ID, err)
+		}
+
+		// If instance has role master, we add its private IP to the list to add it to the lb's backend
+		for _, tag := range e.Tags {
+			if tag == scaleway.TagNameRolePrefix+scaleway.TagRoleMaster {
+				mastersPrivateIPs = append(mastersPrivateIPs, *server.Server.PrivateIP)
+			}
+		}
+
 		// We put the instance inside the private network
 		//pNIC, err := instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
 		//	Zone:             zone,
@@ -203,6 +223,48 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		//if err != nil {
 		//	return fmt.Errorf("error waiting for private nic: %v", err)
 		//}
+	}
+
+	// If IG is master, we add the new servers' IPs to the load-balancer's back-end
+	if len(mastersPrivateIPs) > 0 {
+		lbService := cloud.LBService()
+		region := scw.Region(os.Getenv("SCW_DEFAULT_REGION"))
+
+		lbs, err := cloud.GetClusterLoadBalancers(cloud.ClusterName(e.Tags))
+		if err != nil {
+			return fmt.Errorf("error listing load-balancers for instance creation: %w", err)
+		}
+
+		for _, loadBalancer := range lbs {
+			backEnds, err := lbService.ListBackends(&lb.ListBackendsRequest{
+				Region: region,
+				LBID:   loadBalancer.ID,
+			})
+			if err != nil {
+				return fmt.Errorf("error listing load-balancer's back-ends for instance creation: %w", err)
+			}
+			if backEnds.TotalCount > 1 {
+				return fmt.Errorf("found multiple back-ends for load-balancer %s, exiting now", loadBalancer.ID)
+			}
+			backEnd := backEnds.Backends[0]
+
+			_, err = lbService.AddBackendServers(&lb.AddBackendServersRequest{
+				Region:    region,
+				BackendID: backEnd.ID,
+				ServerIP:  mastersPrivateIPs,
+			})
+			if err != nil {
+				return fmt.Errorf("error adding servers' IPs to load-balancer's back-end: %w", err)
+			}
+
+			_, err = lbService.WaitForLb(&lb.WaitForLBRequest{
+				LBID:   loadBalancer.ID,
+				Region: region,
+			})
+			if err != nil {
+				return fmt.Errorf("error waiting for load-balancer %s: %w", loadBalancer.ID, err)
+			}
+		}
 	}
 
 	//gwService := cloud.GatewayService()

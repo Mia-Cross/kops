@@ -97,6 +97,8 @@ type scwCloudImplementation struct {
 
 // NewScwCloud returns a Cloud, using the env vars SCW_ACCESS_KEY and SCW_SECRET_KEY
 func NewScwCloud(tags map[string]string) (ScwCloud, error) {
+	displayEnv()
+
 	region, err := scw.ParseRegion(os.Getenv("SCW_DEFAULT_REGION"))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing SCW_DEFAULT_REGION: %w", err)

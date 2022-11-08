@@ -143,6 +143,14 @@ func (l *LoadBalancer) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *LoadBa
 		return err
 	}
 
+	_, err = lbService.WaitForLb(&lb.WaitForLBRequest{
+		LBID:   loadBalancer.ID,
+		Region: region,
+	})
+	if err != nil {
+		return fmt.Errorf("error waiting for load-balancer %s: %w", loadBalancer.ID, err)
+	}
+
 	e.LoadBalancerId = &loadBalancer.ID
 
 	// associate vpc to the loadbalancer if set
@@ -171,27 +179,92 @@ func (l *LoadBalancer) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *LoadBa
 	ip := (*loadBalancer.IP[0]).IPAddress
 	e.LoadBalancerAddress = &ip
 
-	//backEnd, err := lbService.CreateBackend(&lb.CreateBackendRequest{
-	//	Region:               region,
-	//	LBID:                 loadBalancer.ID,
-	//	Name:                 "lb-backend",
-	//	ForwardProtocol:      "tcp",
-	//	ForwardPort:          443,
-	//	ForwardPortAlgorithm: roundrobin,
-	//	StickySessions:       "none",
-	//	//StickySessionsCookieName: "",
-	//	HealthCheck:        nil,
-	//	ServerIP:           nil,
-	//	TimeoutServer:      nil,
-	//	TimeoutConnect:     nil,
-	//	TimeoutTunnel:      nil,
-	//	OnMarkedDownAction: "",
-	//	ProxyProtocol:      "",
-	//	FailoverHost:       nil,
-	//	SslBridging:        nil,
-	//})
+	//// We list master instances to create the load-balancer's backend
+	//masters, err := cloud.InstanceService().ListServers(&instance.ListServersRequest{
+	//	Zone: scw.Zone(cloud.Zone()),
+	//	Tags: []string{
+	//		scaleway.TagClusterName + "=" + cloud.ClusterName(e.Tags),
+	//		scaleway.TagNameRolePrefix + scaleway.TagRoleMaster,
+	//	},
+	//	//PrivateNetwork: nil,
+	//}, scw.WithAllPages())
+	//if err != nil {
+	//	return fmt.Errorf("error listing master instances for lb backend: %w", err)
+	//}
+	//
+	//mastersIPs := []string(nil)
+	//for _, master := range masters.Servers {
+	//	mastersIPs = append(mastersIPs, master.PublicIP.Address.String())
+	//}
 
-	// TODO: handle changes
+	// We create the load-balancer's backend
+	backEnd, err := lbService.CreateBackend(&lb.CreateBackendRequest{
+		Region:               region,
+		LBID:                 loadBalancer.ID,
+		Name:                 "lb-backend",
+		ForwardProtocol:      "tcp",
+		ForwardPort:          443,
+		ForwardPortAlgorithm: "roundrobin",
+		StickySessions:       "none",
+		//StickySessionsCookieName: "",
+		HealthCheck: &lb.HealthCheck{
+			//MysqlConfig:     nil,
+			//LdapConfig:      nil,
+			//RedisConfig:     nil,
+			CheckMaxRetries: 5,
+			TCPConfig:       &lb.HealthCheckTCPConfig{},
+			//PgsqlConfig:     nil,
+			//HTTPConfig:      nil,
+			//HTTPSConfig:     nil,
+			Port: 8888,
+			//CheckTimeout:    nil,
+			//CheckDelay:      nil,
+			//CheckSendProxy:  false,
+		},
+		//ServerIP: mastersIPs,
+		//TimeoutServer:      nil,
+		//TimeoutConnect:     nil,
+		//TimeoutTunnel:      nil,
+		//OnMarkedDownAction: "",
+		//ProxyProtocol:      "",
+		//FailoverHost:       nil,
+		//SslBridging:        nil,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating back-end for load-balancer %s: %w", loadBalancer.ID, err)
+	}
+
+	_, err = lbService.WaitForLb(&lb.WaitForLBRequest{
+		LBID:   loadBalancer.ID,
+		Region: region,
+	})
+	if err != nil {
+		return fmt.Errorf("error waiting for load-balancer %s: %w", loadBalancer.ID, err)
+	}
+
+	// We create the load-balancer's front-end
+	_, err = lbService.CreateFrontend(&lb.CreateFrontendRequest{
+		Region:      region,
+		LBID:        loadBalancer.ID,
+		Name:        "lb-frontend",
+		InboundPort: 443,
+		BackendID:   backEnd.ID,
+		//TimeoutClient:  nil,
+		//CertificateID:  nil,
+		//CertificateIDs: nil,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating front-end for load-balancer %s: %w", loadBalancer.ID, err)
+	}
+	_, err = lbService.WaitForLb(&lb.WaitForLBRequest{
+		LBID:   loadBalancer.ID,
+		Region: region,
+	})
+	if err != nil {
+		return fmt.Errorf("error waiting for load-balancer %s: %w", loadBalancer.ID, err)
+	}
+
+	// TODO(Mia-Cross): handle changes
 
 	return nil
 }

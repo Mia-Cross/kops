@@ -38,6 +38,10 @@ func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			},
 		}
 
+		if ig.IsMaster() {
+			instance.Tags = append(instance.Tags, scaleway.TagNameRolePrefix+scaleway.TagRoleMaster)
+		}
+
 		userData, err := d.BootstrapScriptBuilder.ResourceNodeUp(c, ig)
 		if err != nil {
 			return err

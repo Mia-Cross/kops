@@ -693,7 +693,7 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			}
 			l.Builders = append(l.Builders,
 				//&scalewaymodel.NetworkModelBuilder{ScwModelContext: scwModelContext, Lifecycle: networkLifecycle},
-				//&scalewaymodel.APILoadBalancerModelBuilder{ScwModelContext: scwModelContext, Lifecycle: clusterLifecycle},
+				&scalewaymodel.APILoadBalancerModelBuilder{ScwModelContext: scwModelContext, Lifecycle: clusterLifecycle},
 				&scalewaymodel.InstanceModelBuilder{ScwModelContext: scwModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
 				&scalewaymodel.SSHKeyModelBuilder{ScwModelContext: scwModelContext, Lifecycle: securityLifecycle},
 			)
