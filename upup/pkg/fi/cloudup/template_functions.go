@@ -179,6 +179,25 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 		return cluster.Name
 	}
 
+	dest["SCW_ACCESS_KEY"] = func() string {
+		return os.Getenv("SCW_ACCESS_KEY")
+	}
+	dest["SCW_SECRET_KEY"] = func() string {
+		return os.Getenv("SCW_SECRET_KEY")
+	}
+	dest["SCW_DEFAULT_PROJECT_ID"] = func() string {
+		return os.Getenv("SCW_DEFAULT_PROJECT_ID")
+	}
+	dest["SCW_DEFAULT_REGION"] = func() string {
+		return os.Getenv("SCW_DEFAULT_REGION")
+	}
+	dest["SCW_DEFAULT_ZONE"] = func() string {
+		return os.Getenv("SCW_DEFAULT_ZONE")
+	}
+	dest["SCW_DNS_ZONE"] = func() string {
+		return cluster.Spec.DNSZone
+	}
+
 	if featureflag.Spotinst.Enabled() {
 		if creds, err := spotinst.LoadCredentials(); err == nil {
 			dest["SpotinstToken"] = func() string { return creds.Token }
@@ -542,6 +561,8 @@ func (tf *TemplateFunctions) DNSControllerArgv() ([]string, error) {
 			argv = append(argv, "--dns=google-clouddns")
 		case kops.CloudProviderDO:
 			argv = append(argv, "--dns=digitalocean")
+		case kops.CloudProviderScaleway:
+			argv = append(argv, "--dns=scaleway")
 
 		default:
 			return nil, fmt.Errorf("unhandled cloudprovider %q", cluster.Spec.GetCloudProvider())

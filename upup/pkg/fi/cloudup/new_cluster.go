@@ -311,6 +311,8 @@ func NewCluster(opt *NewClusterOptions, clientset simple.Clientset) (*NewCluster
 				MaxRetries: fi.Int(3),
 			},
 		}
+	case api.CloudProviderScaleway:
+		cluster.Spec.CloudProvider.Scaleway = &api.ScalewaySpec{}
 	default:
 		return nil, fmt.Errorf("unsupported cloud provider %s", opt.CloudProvider)
 	}
@@ -688,6 +690,10 @@ func setupZones(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.Stri
 			if err != nil {
 				return nil, err
 			}
+		}
+	case api.CloudProviderScaleway:
+		if len(opt.Zones) > 1 {
+			return nil, fmt.Errorf("scaleway cloud provider currently supports only one zone (location)")
 		}
 	}
 
@@ -1471,6 +1477,10 @@ func defaultImage(cluster *kopsapi.Cluster, channel *kopsapi.Channel, architectu
 	switch cluster.Spec.GetCloudProvider() {
 	case kopsapi.CloudProviderDO:
 		return defaultDONodeImage
+	}
+	switch cluster.Spec.GetCloudProvider() {
+	case kopsapi.CloudProviderScaleway:
+		return defaultSCWNodeImage
 	}
 	klog.Infof("Cannot set default Image for CloudProvider=%q", cluster.Spec.GetCloudProvider())
 	return ""

@@ -26,20 +26,19 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/klog/v2"
-	"k8s.io/kops/pkg/apis/kops/model"
-	"k8s.io/kops/upup/pkg/fi/utils"
-	"sigs.k8s.io/yaml"
-
 	"github.com/scaleway/scaleway-sdk-go/scw"
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
+	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/model/resources"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/fitasks"
+	"k8s.io/kops/upup/pkg/fi/utils"
 	"k8s.io/kops/util/pkg/architectures"
 	"k8s.io/kops/util/pkg/mirrors"
+	"sigs.k8s.io/yaml"
 )
 
 type NodeUpConfigBuilder interface {
@@ -210,7 +209,6 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 	}
 
 	if cluster.Spec.GetCloudProvider() == kops.CloudProviderScaleway {
-
 		region, err := scw.ParseRegion(os.Getenv("SCW_DEFAULT_REGION"))
 		if err != nil {
 			return nil, fmt.Errorf("error parsing SCW_DEFAULT_REGION: %w", err)
@@ -230,13 +228,13 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 		env["SCW_ACCESS_KEY"] = scwAccessKey
 
 		scwSecretKey := os.Getenv("SCW_SECRET_KEY")
-		if scwSecretKey != "" {
+		if scwSecretKey == "" {
 			return nil, fmt.Errorf("SCW_SECRET_KEY has to be set as an environment variable")
 		}
 		env["SCW_SECRET_KEY"] = scwSecretKey
 
 		scwProjectID := os.Getenv("SCW_DEFAULT_PROJECT_ID")
-		if scwProjectID != "" {
+		if scwProjectID == "" {
 			return nil, fmt.Errorf("SCW_DEFAULT_PROJECT_ID has to be set as an environment variable")
 		}
 		env["SCW_DEFAULT_PROJECT_ID"] = scwProjectID

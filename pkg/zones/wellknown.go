@@ -17,6 +17,7 @@ limitations under the License.
 package zones
 
 import (
+	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/clouds"
@@ -361,6 +362,14 @@ var azureZones = []string{
 	"westusstage",
 }
 
+func scwZones() []string {
+	var scwZones []string
+	for _, zone := range scw.AllZones {
+		scwZones = append(scwZones, string(zone))
+	}
+	return scwZones
+}
+
 // GuessCloudForZone tries to infer the cloudprovider from the zone name
 // Ali has the same zoneNames as AWS in the regions outside China, so if use AliCloud to install k8s in the regions outside China,
 // the users need to provide parameter "--cloud". But the regions inside China can be easily identified.
@@ -398,6 +407,8 @@ func WellKnownZonesForCloud(matchCloud kops.CloudProviderID) []string {
 		return gceZones
 	case kops.CloudProviderHetzner:
 		return hetznerZones
+	case kops.CloudProviderScaleway:
+		return scwZones()
 
 	default:
 		return nil
