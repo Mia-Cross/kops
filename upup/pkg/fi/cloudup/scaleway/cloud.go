@@ -24,15 +24,15 @@ import (
 )
 
 const (
-	TagClusterName           = "kops.k8s.io/cluster"
+	TagClusterName           = "kops.k8s.io-cluster"
 	KopsUserAgentPrefix      = "kubernetes-kops/"
-	TagNameEtcdClusterPrefix = "k8s.io/etcd/"
-	TagNameRolePrefix        = "k8s.io/role/"
+	TagNameEtcdClusterPrefix = "k8s.io-etcd"
+	TagNameRolePrefix        = "k8s.io-role"
 	TagRoleMaster            = "master"
 	TagInstanceGroup         = "instance-group"
 	TagRoleVolume            = "volume"
 	TagRoleLoadBalancer      = "load-balancer"
-	TagNeedsUpdate           = "kops.k8s.io/needs-update"
+	TagNeedsUpdate           = "kops.k8s.io-needs-update"
 )
 
 // ScwCloud exposes all the interfaces required to operate on Scaleway resources
@@ -341,7 +341,7 @@ func buildCloudGroup(ig *kops.InstanceGroup, sg []*instance.Server, nodeMap map[
 		cloudInstance.State = cloudinstances.State(server.State)
 		for _, tag := range server.Tags {
 			if strings.HasPrefix(tag, TagNameRolePrefix) {
-				cloudInstance.Roles = append(cloudInstance.Roles, strings.TrimPrefix(tag, TagNameRolePrefix))
+				cloudInstance.Roles = append(cloudInstance.Roles, strings.TrimPrefix(tag, TagNameRolePrefix+"="))
 			}
 		}
 		//TODO(Mia-Cross): add commercial type as cloudInstance.MachineType ??

@@ -1,7 +1,7 @@
 apiVersion: kops.k8s.io/v1alpha2
 kind: Cluster
 metadata:
-  creationTimestamp: "2022-09-23T09:25:26Z"
+  creationTimestamp: "2022-11-10T14:35:54Z"
   name: cluster.k8s.local
 spec:
   api:
@@ -28,15 +28,18 @@ spec:
   iam:
     allowContainerRegistry: true
     legacy: false
+  kubeProxy:
+    enabled: false
   kubelet:
     anonymousAuth: false
   kubernetesApiAccess:
   - 0.0.0.0/0
   - ::/0
-  kubernetesVersion: 1.25.2
+  kubernetesVersion: 1.25.3
   masterPublicName: api.cluster.k8s.local
   networking:
-    calico: {}
+    cilium:
+      enableNodePort: true
   nonMasqueradeCIDR: 100.64.0.0/10
   sshAccess:
   - 0.0.0.0/0

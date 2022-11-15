@@ -49,7 +49,7 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		Lifecycle: b.Lifecycle,
 		Tags: []string{
 			scaleway.TagClusterName + "=" + b.ClusterName(),
-			scaleway.TagNameRolePrefix + scaleway.TagRoleLoadBalancer, // QUESTION : is this tag useful or not ?
+			scaleway.TagNameRolePrefix + "=" + scaleway.TagRoleLoadBalancer, // QUESTION : is this tag useful or not ?
 		},
 	}
 

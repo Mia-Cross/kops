@@ -199,7 +199,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 
 		// If instance has role master, we add its private IP to the list to add it to the lb's backend
 		for _, tag := range e.Tags {
-			if tag == scaleway.TagNameRolePrefix+scaleway.TagRoleMaster {
+			if tag == scaleway.TagNameRolePrefix+"="+scaleway.TagRoleMaster {
 				mastersPrivateIPs = append(mastersPrivateIPs, *server.Server.PrivateIP)
 			}
 		}

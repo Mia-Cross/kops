@@ -448,11 +448,11 @@ func (b *EtcdManagerBuilder) buildPod(etcdCluster kops.EtcdClusterSpec, instance
 
 			config.VolumeTag = []string{
 				fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.Name),
-				scaleway.TagNameEtcdClusterPrefix + etcdCluster.Name,
-				scaleway.TagNameRolePrefix + "master=1",
-				scaleway.TagInstanceGroup + "=" + instanceGroupName,
+				fmt.Sprintf("%s=%s", scaleway.TagNameEtcdClusterPrefix, etcdCluster.Name),
+				fmt.Sprintf("%s=%s", scaleway.TagNameRolePrefix, scaleway.TagRoleMaster),
+				fmt.Sprintf("%s=%s", scaleway.TagInstanceGroup, instanceGroupName),
 			}
-			config.VolumeNameTag = scaleway.TagNameEtcdClusterPrefix + etcdCluster.Name
+			config.VolumeNameTag = fmt.Sprintf("%s=%s", scaleway.TagNameEtcdClusterPrefix, etcdCluster.Name)
 
 		default:
 			return nil, fmt.Errorf("CloudProvider %q not supported with etcd-manager", b.Cluster.Spec.GetCloudProvider())

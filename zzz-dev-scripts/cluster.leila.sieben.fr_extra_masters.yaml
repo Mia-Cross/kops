@@ -1,12 +1,11 @@
 apiVersion: kops.k8s.io/v1alpha2
 kind: Cluster
 metadata:
-  creationTimestamp: "2022-09-23T09:25:26Z"
+  creationTimestamp: "2022-11-14T10:07:11Z"
   name: cluster.leila.sieben.fr
 spec:
   api:
-    loadBalancer:
-      type: Public
+    dns: {}
   authorization:
     rbac: {}
   channel: stable
@@ -36,15 +35,18 @@ spec:
   iam:
     allowContainerRegistry: true
     legacy: false
+  kubeProxy:
+    enabled: false
   kubelet:
     anonymousAuth: false
   kubernetesApiAccess:
   - 0.0.0.0/0
   - ::/0
-  kubernetesVersion: 1.25.2
+  kubernetesVersion: 1.25.4
   masterPublicName: api.cluster.leila.sieben.fr
   networking:
-    calico: {}
+    cilium:
+      enableNodePort: true
   nonMasqueradeCIDR: 100.64.0.0/10
   sshAccess:
   - 0.0.0.0/0

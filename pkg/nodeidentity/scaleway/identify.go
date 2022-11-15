@@ -82,12 +82,9 @@ func (i *nodeIdentifier) IdentifyNode(ctx context.Context, node *corev1.Node) (*
 
 	labels := map[string]string{}
 	for _, tag := range server.Tags {
-		// TODO: blocked here, hetzner instances have labels (map[string]string), we only have tags ([]string)
-		// so we have to decide how we want to handle this.
-		tagValue := strings.TrimPrefix(tag, scaleway.TagNameRolePrefix)
-		if tagValue != tag {
-			// We should probably remove this check above and just compare each tag to kops consts
-			switch kops.InstanceGroupRole(tagValue) {
+		if strings.HasPrefix(tag, scaleway.TagNameRolePrefix) {
+			role := strings.TrimPrefix(tag, scaleway.TagNameRolePrefix+"=")
+			switch kops.InstanceGroupRole(role) {
 			case kops.InstanceGroupRoleMaster:
 				labels[nodelabels.RoleLabelControlPlane20] = ""
 			case kops.InstanceGroupRoleNode:
@@ -95,7 +92,7 @@ func (i *nodeIdentifier) IdentifyNode(ctx context.Context, node *corev1.Node) (*
 			case kops.InstanceGroupRoleAPIServer:
 				labels[nodelabels.RoleLabelAPIServer16] = ""
 			default:
-				klog.Warningf("Unknown node role %q for server %s(%d)", tagValue, server.Name, server.ID)
+				klog.Warningf("Unknown node role %q for server %s(%d)", role, server.Name, server.ID)
 			}
 		}
 	}

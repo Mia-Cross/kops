@@ -179,24 +179,6 @@ func (l *LoadBalancer) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *LoadBa
 	ip := (*loadBalancer.IP[0]).IPAddress
 	e.LoadBalancerAddress = &ip
 
-	//// We list master instances to create the load-balancer's backend
-	//masters, err := cloud.InstanceService().ListServers(&instance.ListServersRequest{
-	//	Zone: scw.Zone(cloud.Zone()),
-	//	Tags: []string{
-	//		scaleway.TagClusterName + "=" + cloud.ClusterName(e.Tags),
-	//		scaleway.TagNameRolePrefix + scaleway.TagRoleMaster,
-	//	},
-	//	//PrivateNetwork: nil,
-	//}, scw.WithAllPages())
-	//if err != nil {
-	//	return fmt.Errorf("error listing master instances for lb backend: %w", err)
-	//}
-	//
-	//mastersIPs := []string(nil)
-	//for _, master := range masters.Servers {
-	//	mastersIPs = append(mastersIPs, master.PublicIP.Address.String())
-	//}
-
 	// We create the load-balancer's backend
 	backEnd, err := lbService.CreateBackend(&lb.CreateBackendRequest{
 		Region:               region,
@@ -216,9 +198,9 @@ func (l *LoadBalancer) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *LoadBa
 			//PgsqlConfig:     nil,
 			//HTTPConfig:      nil,
 			//HTTPSConfig:     nil,
-			Port: 8888,
-			//CheckTimeout:    nil,
-			//CheckDelay:      nil,
+			Port:         443,
+			CheckTimeout: scw.TimeDurationPtr(3000),
+			CheckDelay:   scw.TimeDurationPtr(1001),
 			//CheckSendProxy:  false,
 		},
 		//ServerIP: mastersIPs,
@@ -226,7 +208,7 @@ func (l *LoadBalancer) RenderScw(t *scaleway.ScwAPITarget, a, e, changes *LoadBa
 		//TimeoutConnect:     nil,
 		//TimeoutTunnel:      nil,
 		//OnMarkedDownAction: "",
-		//ProxyProtocol:      "",
+		ProxyProtocol: "proxy_protocol_none",
 		//FailoverHost:       nil,
 		//SslBridging:        nil,
 	})

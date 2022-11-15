@@ -394,10 +394,10 @@ func (b *MasterVolumeBuilder) addScalewayVolume(c *fi.ModelBuilderContext, name 
 		nameWithIndex := fmt.Sprintf("%s[%s].etcd-%s", nameSplitted[0], strconv.Itoa(int(i)), nameSplitted[1])
 		tags := []string{
 			fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.Cluster.ObjectMeta.Name),
-			scaleway.TagNameEtcdClusterPrefix + etcd.Name,
-			scaleway.TagNameRolePrefix + scaleway.TagRoleMaster + "=1",
-			scaleway.TagInstanceGroup + "=" + fi.StringValue(m.InstanceGroup),
-			scaleway.TagRoleVolume + "=" + etcd.Name,
+			fmt.Sprintf("%s=%s", scaleway.TagNameEtcdClusterPrefix, etcd.Name),
+			fmt.Sprintf("%s=%s", scaleway.TagNameRolePrefix, scaleway.TagRoleMaster),
+			fmt.Sprintf("%s=%s", scaleway.TagInstanceGroup, fi.StringValue(m.InstanceGroup)),
+			fmt.Sprintf("%s=%s", scaleway.TagRoleVolume, etcd.Name),
 		}
 
 		t := &scalewaytasks.Volume{
