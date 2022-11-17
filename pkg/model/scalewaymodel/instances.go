@@ -1,6 +1,9 @@
 package scalewaymodel
 
 import (
+	"fmt"
+
+	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/kops/pkg/model"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
@@ -20,6 +23,10 @@ var _ fi.ModelBuilder = &InstanceModelBuilder{}
 func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	for _, ig := range d.InstanceGroups {
 		name := d.AutoscalingGroupName(ig)
+		zone, err := scw.ParseZone(ig.Spec.Subnets[0])
+		if err != nil {
+			return fmt.Errorf("error building instance task for %q: %w", name, err)
+		}
 
 		instance := scalewaytasks.Instance{
 			Count:     int(fi.Int32Value(ig.Spec.MinSize)),
@@ -29,7 +36,7 @@ func (d *InstanceModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 			// during alpha support we only allow 1 region
 			// validation for only 1 region is done at this point
-			Zone:           fi.String(d.Cluster.Spec.Subnets[0].Zone),
+			Zone:           fi.String(string(zone)),
 			CommercialType: fi.String(ig.Spec.MachineType),
 			Image:          fi.String(ig.Spec.Image),
 			Tags: []string{

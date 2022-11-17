@@ -25,7 +25,7 @@ type Instance struct {
 	Count          int
 	UserData       *fi.Resource
 	//Network        *Network
-	NeedsUpdate bool
+	NeedsUpdate []string
 }
 
 var _ fi.Task = &Instance{}
@@ -43,14 +43,23 @@ func (s *Instance) Find(c *fi.Context) (*Instance, error) {
 		return nil, err
 	}
 
-	//for i, server := range responseServers.Servers {
 	// Check if servers have been added to the instance group, therefore an update is needed
-	//if len(servers) >= s.Count {
-	//	s.NeedsUpdate = true
-	//	//continue
-	//}
-	//}
-	//TODO(Mia-Cross): we also need to find a way to tag existing servers as needing an update if etcd-clusters were added
+	if len(servers) > s.Count {
+		for _, server := range servers {
+			alreadyTagged := false
+			for _, tag := range server.Tags {
+				if tag == scaleway.TagNeedsUpdate {
+					alreadyTagged = true
+				}
+			}
+			if alreadyTagged == true {
+				continue
+			}
+			s.NeedsUpdate = append(s.NeedsUpdate, server.ID)
+		}
+	}
+	//TODO(Mia-Cross): handle other changes like image, commercial type, userdata
+
 	server := servers[0]
 
 	return &Instance{
@@ -70,67 +79,44 @@ func (s *Instance) Run(c *fi.Context) error {
 	return fi.DefaultDeltaRunMethod(s, c)
 }
 
-func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
+func (_ *Instance) RenderScw(c *fi.Context, actual, expected, changes *Instance) error {
 	cloud := c.Cloud.(scaleway.ScwCloud)
 	instanceService := cloud.InstanceService()
-	zone := scw.Zone(fi.StringValue(e.Zone))
+	zone := scw.Zone(fi.StringValue(expected.Zone))
 
-	//if a != nil {
-	//	// Add "kops.k8s.io/needs-update" label to servers needing update
-	//	if a.NeedsUpdate == true {
-	//		servers, err := cloud.GetClusterServers(cloud.ClusterName(), a.Name)
-	//		if err != nil {
-	//			return fmt.Errorf("error rendering server group: error listing existing servers: %w", err)
-	//		}
-	//		for _, server := range servers {
-	//			_, err = instanceService.UpdateServer(&instance.UpdateServerRequest{
-	//				Zone:     zone,
-	//				ServerID: server.ID,
-	//				Tags:     scw.StringsPtr(append(server.Tags, scaleway.TagNeedsUpdate)),
-	//			})
-	//			if err != nil {
-	//				return fmt.Errorf("error rendering server group: error adding update tag to server %q (%s): %w", server.Name, server.ID, err)
-	//			}
-	//		}
-	//	}
-	//}
-
-	userData, err := fi.ResourceAsBytes(*e.UserData)
-	if err != nil {
-		return err
-	}
-
-	var newInstanceCount int
-	if a == nil {
-		newInstanceCount = e.Count
-	} else {
-		expectedCount := e.Count
-		actualCount := a.Count
-
-		if expectedCount == actualCount {
+	newInstanceCount := expected.Count
+	if actual != nil {
+		if expected.Count == actual.Count {
 			return nil
 		}
+		newInstanceCount = expected.Count - actual.Count
 
-		if actualCount > expectedCount {
-			igInstances, err := cloud.GetClusterServers(cloud.ClusterName(a.Tags), a.Name)
+		// Add "kops.k8s.io/needs-update" label to servers needing update
+		for _, serverID := range actual.NeedsUpdate {
+			server, err := instanceService.GetServer(&instance.GetServerRequest{
+				Zone:     zone,
+				ServerID: serverID,
+			})
 			if err != nil {
-				return fmt.Errorf("error listing instances named %s", fi.StringValue(a.Name))
+				return fmt.Errorf("error rendering server group: error listing existing servers: %w", err)
 			}
-			for _, igInstance := range igInstances {
-				err = cloud.DeleteServer(igInstance)
-				if err != nil {
-					return fmt.Errorf("error deleting instance %s of group %s", igInstance.ID, igInstance.Name)
-				}
-				actualCount--
-				if expectedCount == actualCount {
-					break
-				}
+			_, err = instanceService.UpdateServer(&instance.UpdateServerRequest{
+				Zone:     zone,
+				ServerID: serverID,
+				Tags:     scw.StringsPtr(append(server.Server.Tags, scaleway.TagNeedsUpdate)),
+			})
+			if err != nil {
+				return fmt.Errorf("error rendering server group: error adding update tag to server %q (%s): %w", server.Server.Name, serverID, err)
 			}
 		}
-
-		newInstanceCount = expectedCount - actualCount
 	}
 
+	userData, err := fi.ResourceAsBytes(*expected.UserData)
+	if err != nil {
+		return fmt.Errorf("error rendering instances: %w", err)
+	}
+
+	// We get the private network to associate it with new instances
 	//pn, err := cloud.GetClusterVPCs(c.Cluster.Name)
 	//if err != nil {
 	//	return fmt.Errorf("error listing private networks: %v", err)
@@ -141,24 +127,28 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 
 	mastersPrivateIPs := []string(nil)
 
+	// If newInstanceCount > 0, we need to create new instances for this group
 	for i := 0; i < newInstanceCount; i++ {
 
 		// We create the instance
 		srv, err := instanceService.CreateServer(&instance.CreateServerRequest{
 			Zone:           zone,
-			Name:           fi.StringValue(e.Name),
-			CommercialType: fi.StringValue(e.CommercialType),
-			Image:          fi.StringValue(e.Image),
-			Tags:           e.Tags,
+			Name:           fi.StringValue(expected.Name),
+			CommercialType: fi.StringValue(expected.CommercialType),
+			Image:          fi.StringValue(expected.Image),
+			Tags:           expected.Tags,
 		})
 		if err != nil {
-			return fmt.Errorf("error creating instance with name %s: %s", fi.StringValue(e.Name), err)
+			return fmt.Errorf("error creating instance of group %q: %w", fi.StringValue(expected.Name), err)
 		}
 
 		// We wait for the instance to be ready
-		_, err = scaleway.WaitForInstanceServer(instanceService, zone, srv.Server.ID)
+		_, err = instanceService.WaitForServer(&instance.WaitForServerRequest{
+			ServerID: srv.Server.ID,
+			Zone:     zone,
+		})
 		if err != nil {
-			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
+			return fmt.Errorf("error waiting for instance %s of group %q: %w", srv.Server.ID, fi.StringValue(expected.Name), err)
 		}
 
 		// We load the cloud-init script in the instance user data
@@ -169,7 +159,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			Content:  bytes.NewBuffer(userData),
 		})
 		if err != nil {
-			return fmt.Errorf("error setting 'cloud-init' in user-data: %s", err)
+			return fmt.Errorf("error setting 'cloud-init' in user-data for instance %s of group %q: %w", srv.Server.ID, fi.StringValue(expected.Name), err)
 		}
 
 		// We start the instance
@@ -179,13 +169,22 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 			Action:   instance.ServerActionPoweron,
 		})
 		if err != nil {
-			return fmt.Errorf("error powering on instance with name %s: %s", fi.StringValue(e.Name), err)
+			return fmt.Errorf("error powering on instance %s of group %q: %w", srv.Server.ID, fi.StringValue(expected.Name), err)
+		}
+
+		// We wait for the instance to be ready
+		_, err = instanceService.WaitForServer(&instance.WaitForServerRequest{
+			ServerID: srv.Server.ID,
+			Zone:     zone,
+		})
+		if err != nil {
+			return fmt.Errorf("error waiting for instance %s of group %q: %w", srv.Server.ID, fi.StringValue(expected.Name), err)
 		}
 
 		// We wait for the instance to be ready
 		_, err = scaleway.WaitForInstanceServer(instanceService, zone, srv.Server.ID)
 		if err != nil {
-			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(e.Name), err)
+			return fmt.Errorf("error waiting for instance with name %s: %s", fi.StringValue(expected.Name), err)
 		}
 
 		// We update the server's infos (to get its IP)
@@ -198,7 +197,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		}
 
 		// If instance has role master, we add its private IP to the list to add it to the lb's backend
-		for _, tag := range e.Tags {
+		for _, tag := range expected.Tags {
 			if tag == scaleway.TagNameRolePrefix+"="+scaleway.TagRoleMaster {
 				mastersPrivateIPs = append(mastersPrivateIPs, *server.Server.PrivateIP)
 			}
@@ -230,7 +229,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		lbService := cloud.LBService()
 		region := scw.Region(os.Getenv("SCW_DEFAULT_REGION"))
 
-		lbs, err := cloud.GetClusterLoadBalancers(cloud.ClusterName(e.Tags))
+		lbs, err := cloud.GetClusterLoadBalancers(cloud.ClusterName(expected.Tags))
 		if err != nil {
 			return fmt.Errorf("error listing load-balancers for instance creation: %w", err)
 		}
@@ -267,12 +266,27 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 		}
 	}
 
+	// If newInstanceCount < 0, we need to delete instances of this group
+	for i := 0; i > expected.Count; i-- {
+
+		igInstances, err := cloud.GetClusterServers(cloud.ClusterName(actual.Tags), actual.Name)
+		if err != nil {
+			return fmt.Errorf("error deleting instance: %w", err)
+		}
+
+		for _, igInstance := range igInstances {
+			err = cloud.DeleteServer(igInstance)
+			if err != nil {
+				return fmt.Errorf("error deleting instance of group %s: %w", igInstance.Name, err)
+			}
+		}
+	}
+
+	// We create NAT rules linking the gateway to our instances in order to be able to connect via SSH
+	// TODO(Mia-Cross): This part is for dev purposes only, remove when done
 	//gwService := cloud.GatewayService()
 	//rules := []*vpcgw.SetPATRulesRequestRule(nil)
 	//port := uint32(2022)
-
-	// We create NAT rules linking the gateway to our instances in order to be able to connect via SSH
-	//// TODO(Mia-Cross): This part is for dev purposes only, remove when done
 	//gwNetwork, err := cloud.GetClusterGatewayNetworks(pn[0].ID)
 	//if err != nil {
 	//	return err
@@ -308,6 +322,7 @@ func (_ *Instance) RenderScw(c *fi.Context, a, e, changes *Instance) error {
 	//	}
 	//	klog.V(4).Infof("=== rules set")
 	//}
+
 	return nil
 }
 

@@ -14,6 +14,8 @@ if [ "$2" == "-d" ] || [ "$3" == "-d" ] || [ "$4" == "-d" ] ; then
   if [ $? != 0 ]; then
     echo "ERROR DELETING PREVIOUS CLUSTER"
     exit
+  elif [ "$3" == "" ]; then
+    exit
   fi
 fi
 
@@ -28,6 +30,11 @@ fi
 
 # ADD MASTERS ?
 if [ "$2" == "-am" ] || [ "$3" == "-am" ] || [ "$4" == "-am" ] ; then
+  go run -v ./cmd/kops validate cluster --wait=10m
+  if [ $? != 0 ]; then
+    echo "COULD NOT VALIDATE CLUSTER WITHIN 10MIN"
+    exit
+  fi
   go run -v ./cmd/kops replace -f "$SPEC_FILES_DIR/$CLUSTER_NAME"_extra_masters.yaml
   if [ $? != 0 ]; then
     echo "ERROR REPLACING CLUSTER SPEC FILE"

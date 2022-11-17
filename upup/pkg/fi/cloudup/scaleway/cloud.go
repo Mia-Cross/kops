@@ -227,16 +227,48 @@ func (s *scwCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstance)
 
 // DeregisterInstance drains a cloud instance and load-balancers.
 func (s *scwCloudImplementation) DeregisterInstance(i *cloudinstances.CloudInstance) error {
-	//TODO(Mia-Cross) implement me
-	panic("implement me")
+	server, err := s.instanceAPI.GetServer(&instance.GetServerRequest{
+		Zone:     s.zone,
+		ServerID: i.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("error deregistering cloud instance %s of group %s: %w", i.ID, i.CloudInstanceGroup.HumanName, err)
+	}
+
+	// We remove the instance's IP from load-balancers
+	lbs, err := s.GetClusterLoadBalancers(s.ClusterName(server.Server.Tags))
+	if err != nil {
+		return fmt.Errorf("error deregistering cloud instance %s of group %s: %w", i.ID, i.CloudInstanceGroup.HumanName, err)
+	}
+	for _, loadBalancer := range lbs {
+		backEnds, err := s.lbAPI.ListBackends(&lb.ListBackendsRequest{
+			Region: s.region,
+			LBID:   loadBalancer.ID,
+		}, scw.WithAllPages())
+		if err != nil {
+			return fmt.Errorf("eerror deregistering cloud instance %s of group %s: error listing load-balancer's back-ends for instance creation: %w", i.ID, i.CloudInstanceGroup.HumanName, err)
+		}
+		for _, backEnd := range backEnds.Backends {
+			for _, serverIP := range backEnd.Pool {
+				if serverIP == fi.StringValue(server.Server.PrivateIP) {
+					_, err := s.lbAPI.RemoveBackendServers(&lb.RemoveBackendServersRequest{
+						Region:    s.region,
+						BackendID: backEnd.ID,
+						ServerIP:  []string{serverIP},
+					})
+					if err != nil {
+						return fmt.Errorf("error deregistering cloud instance %s of group %s: error removing IP from lb %w", i.ID, i.CloudInstanceGroup.HumanName, err)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // DeleteGroup deletes the cloud resources that make up a CloudInstanceGroup, including the instances.
 func (s *scwCloudImplementation) DeleteGroup(group *cloudinstances.CloudInstanceGroup) error {
-	if group.InstanceGroup.IsMaster() {
-		//group.InstanceGroup.
-	}
-
 	toDelete := append(group.NeedUpdate, group.Ready...)
 	for _, cloudInstance := range toDelete {
 		err := s.DeleteInstance(cloudInstance)
@@ -334,6 +366,12 @@ func buildCloudGroup(ig *kops.InstanceGroup, sg []*instance.Server, nodeMap map[
 
 	for _, server := range sg {
 		status := cloudinstances.CloudInstanceStatusUpToDate
+		for _, tag := range server.Tags {
+			if tag == TagNeedsUpdate {
+				status = cloudinstances.CloudInstanceStatusNeedsUpdate
+			}
+		}
+
 		cloudInstance, err := cloudInstanceGroup.NewCloudInstance(server.ID, status, nodeMap[server.ID])
 		if err != nil {
 			return nil, fmt.Errorf("failed to create cloud instance for server %s(%s): %w", server.Name, server.ID, err)
@@ -377,8 +415,11 @@ func (s *scwCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]f
 		klog.V(4).Infof("more than 1 load-balancer with the name %s was found", name)
 	}
 
-	address := responseLoadBalancers.LBs[0].IP[0].IPAddress
-	ingresses = append(ingresses, fi.ApiIngressStatus{IP: address})
+	for _, loadBalancer := range responseLoadBalancers.LBs {
+		for _, lbIP := range loadBalancer.IP {
+			ingresses = append(ingresses, fi.ApiIngressStatus{IP: lbIP.IPAddress})
+		}
+	}
 
 	return ingresses, nil
 }
