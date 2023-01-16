@@ -83,9 +83,9 @@ type ScwCloud interface {
 	GetClusterVolumes(clusterName string) ([]*instance.Volume, error)
 	GetClusterVPCs(clusterName string) ([]*vpc.PrivateNetwork, error)
 
+	DeleteDNSRecord(record *domain.Record, domainName string) error
 	DeleteGateway(gateway *vpcgw.Gateway) error
 	DeleteLoadBalancer(loadBalancer *lb.LB) error
-	DeleteRecord(record *domain.Record, domainName string) error
 	DeleteServer(server *instance.Server) error
 	DeleteSSHKey(sshkey *iam.SSHKey) error
 	DeleteVolume(volume *instance.Volume) error
@@ -505,7 +505,11 @@ func (s *scwCloudImplementation) DeleteGateway(gateway *vpcgw.Gateway) error {
 	// We look for gateway connexions to private networks and detach them before deleting the gateway
 	connexions, err := s.GetClusterGatewayNetworks(gateway.ID)
 	if err != nil {
-		return err
+		if is404Error(err) {
+			klog.V(8).Infof("Gateway %q (%s) was already deleted", gateway.Name, gateway.ID)
+			return nil
+		}
+		return fmt.Errorf("error listing gateway networks: %w", err)
 	}
 	for _, connexion := range connexions {
 		err := s.gatewayAPI.DeleteGatewayNetwork(&vpcgw.DeleteGatewayNetworkRequest{
@@ -524,6 +528,10 @@ func (s *scwCloudImplementation) DeleteGateway(gateway *vpcgw.Gateway) error {
 		Zone:      s.zone,
 	})
 	if err != nil {
+		if is404Error(err) {
+			klog.V(8).Infof("Gateway %q (%s) was already deleted", gateway.Name, gateway.ID)
+			return nil
+		}
 		return fmt.Errorf("error waiting for gateway: %w", err)
 	}
 
@@ -582,6 +590,10 @@ func (s *scwCloudImplementation) DeleteLoadBalancer(loadBalancer *lb.LB) error {
 		Zone: s.zone,
 	})
 	if err != nil {
+		if is404Error(err) {
+			klog.V(8).Infof("Load-balancer %q (%s) was already deleted", loadBalancer.Name, loadBalancer.ID)
+			return nil
+		}
 		return fmt.Errorf("waiting for load-balancer: %w", err)
 	}
 	err = s.lbAPI.DeleteLB(&lb.ZonedAPIDeleteLBRequest{
@@ -612,7 +624,7 @@ func (s *scwCloudImplementation) DeleteLoadBalancer(loadBalancer *lb.LB) error {
 	return nil
 }
 
-func (s *scwCloudImplementation) DeleteRecord(record *domain.Record, domainName string) error {
+func (s *scwCloudImplementation) DeleteDNSRecord(record *domain.Record, domainName string) error {
 	recordDeleteRequest := &domain.UpdateDNSZoneRecordsRequest{
 		DNSZone: domainName,
 		Changes: []*domain.RecordChange{
@@ -625,6 +637,10 @@ func (s *scwCloudImplementation) DeleteRecord(record *domain.Record, domainName 
 	}
 	_, err := s.domainAPI.UpdateDNSZoneRecords(recordDeleteRequest)
 	if err != nil {
+		if is404Error(err) {
+			klog.V(8).Infof("DNS record %q (%s) was already deleted", record.Name, record.ID)
+			return nil
+		}
 		return fmt.Errorf("failed to delete record %s: %w", record.Name, err)
 	}
 	return nil
@@ -637,7 +653,7 @@ func (s *scwCloudImplementation) DeleteServer(server *instance.Server) error {
 	})
 	if err != nil {
 		if is404Error(err) {
-			klog.V(4).Infof("delete server %s: instance was already deleted", server.ID)
+			klog.V(8).Infof("Instance server %q (%s) was already deleted", server.Name, server.ID)
 			return nil
 		}
 		return err
@@ -749,6 +765,10 @@ func (s *scwCloudImplementation) DeleteVPC(privateNetwork *vpc.PrivateNetwork) e
 		Zone:             s.zone,
 	})
 	if err != nil {
+		if is404Error(err) {
+			klog.V(8).Infof("Private network %q (%s) was already deleted", privateNetwork.Name, privateNetwork.ID)
+			return nil
+		}
 		return fmt.Errorf("failed to delete VPC %s: %w", privateNetwork.ID, err)
 	}
 	return nil
