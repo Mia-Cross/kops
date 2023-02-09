@@ -116,8 +116,6 @@ type scwCloudImplementation struct {
 func NewScwCloud(tags map[string]string) (ScwCloud, error) {
 	displayEnv()
 
-	errList := []error(nil)
-
 	region, err := scw.ParseRegion(tags["region"])
 	if err != nil {
 		return nil, err

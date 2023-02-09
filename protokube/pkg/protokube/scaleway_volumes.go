@@ -64,7 +64,6 @@ func NewScwCloudProvider() (*ScwCloudProvider, error) {
 		scw.WithUserAgent(scaleway.KopsUserAgentPrefix+kopsv.Version),
 		scw.WithEnv(),
 		scw.WithDefaultZone(zone),
-		scw.WithDefaultRegion(region),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error creating client: %w", err)
