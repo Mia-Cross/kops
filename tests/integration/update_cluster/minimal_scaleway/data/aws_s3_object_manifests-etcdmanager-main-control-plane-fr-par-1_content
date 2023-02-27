@@ -1,0 +1,208 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    k8s-app: etcd-manager-main
+  name: etcd-manager-main
+  namespace: kube-system
+spec:
+  containers:
+  - command:
+    - /bin/sh
+    - -c
+    - mkfifo /tmp/pipe; (tee -a /var/log/etcd.log < /tmp/pipe & ) ; exec /etcd-manager
+      --backup-store=memfs://tests/scw-minimal.k8s.local/backups/etcd/main
+      --client-urls=https://__name__:4001 --cluster-name=etcd --containerized=true
+      --dns-suffix=.internal.scw-minimal.k8s.local --grpc-port=3996 --peer-urls=https://__name__:2380
+      --quarantine-client-urls=https://__name__:3994 --v=6 --volume-name-tag=instance-group=control-plane-fr-par-1
+      --volume-provider=scaleway --volume-tag=k8s.io/etcd=main --volume-tag=k8s.io/role=control-plane
+      --volume-tag=kops.k8s.io/cluster=scw-minimal.k8s.local > /tmp/pipe 2>&1
+    env:
+    - name: S3_ACCESS_KEY_ID
+      value: SCW4N213HFNWST6581KQ
+    - name: S3_ENDPOINT
+      value: https://s3.fr-par.scw.cloud
+    - name: S3_REGION
+      value: fr-par
+    - name: S3_SECRET_ACCESS_KEY
+      value: 9557674b-d80c-4c04-aee6-4fed9e96d1f0
+    - name: SCW_ACCESS_KEY
+      value: SCW4N213HFNWST6581KQ
+    - name: SCW_DEFAULT_PROJECT_ID
+      value: fa1e3217-dc80-42ac-85c3-3f034b78b552
+    - name: SCW_SECRET_KEY
+      value: 9557674b-d80c-4c04-aee6-4fed9e96d1f0
+    - name: ETCD_MANAGER_DAILY_BACKUPS_RETENTION
+      value: 90d
+    image: registry.k8s.io/etcdadm/etcd-manager-slim:v3.0.20230201@sha256:8727adc059334e0e3329dbccce116a734da4a090da5e86c8cddccaf333caa666
+    name: etcd-manager
+    resources:
+      requests:
+        cpu: 200m
+        memory: 100Mi
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - mountPath: /rootfs
+      name: rootfs
+    - mountPath: /run
+      name: run
+    - mountPath: /etc/kubernetes/pki/etcd-manager
+      name: pki
+    - mountPath: /opt
+      name: bin
+    - mountPath: /var/log/etcd.log
+      name: varlogetcd
+  hostNetwork: true
+  hostPID: true
+  initContainers:
+  - args:
+    - -c
+    - mkdir -p /opt/etcd-v3.2.24/ && cp /usr/local/bin/etcd /usr/local/bin/etcdctl
+      /opt/etcd-v3.2.24/
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.2.24-1@sha256:905d7ca17fd02bc24c0eba9a062753aba15db3e31422390bc3238eb762339b20
+    name: init-etcd-3-2-24
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - mkdir -p /opt/etcd-v3.3.10/ && cp /usr/local/bin/etcd /usr/local/bin/etcdctl
+      /opt/etcd-v3.3.10/
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.3.10-0@sha256:17da501f5d2a675be46040422a27b7cc21b8a43895ac998b171db1c346f361f7
+    name: init-etcd-3-3-10
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - mkdir -p /opt/etcd-v3.3.17/ && cp /usr/local/bin/etcd /usr/local/bin/etcdctl
+      /opt/etcd-v3.3.17/
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.3.17-0@sha256:0d2ab6b15b4fe0b903b9e81192d942fb39c29be61fe341cd16db5d0165b0435c
+    name: init-etcd-3-3-17
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.4.13/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.4.13/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.4.13-0@sha256:4ad90a11b55313b182afc186b9876c8e891531b8db4c9bf1541953021618d0e2
+    name: init-etcd-3-4-13
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - mkdir -p /opt/etcd-v3.4.3/ && cp /usr/local/bin/etcd /usr/local/bin/etcdctl
+      /opt/etcd-v3.4.3/
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.4.3-0@sha256:4afb99b4690b418ffc2ceb67e1a17376457e441c1f09ab55447f0aaf992fa646
+    name: init-etcd-3-4-3
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.5.0/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.5.0/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.5.0-0@sha256:9ce33ba33d8e738a5b85ed50b5080ac746deceed4a7496c550927a7a19ca3b6d
+    name: init-etcd-3-5-0
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.5.1/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.5.1/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.5.1-0@sha256:64b9ea357325d5db9f8a723dcf503b5a449177b17ac87d69481e126bb724c263
+    name: init-etcd-3-5-1
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.5.3/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.5.3/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.5.3-0@sha256:13f53ed1d91e2e11aac476ee9a0269fdda6cc4874eba903efd40daf50c55eee5
+    name: init-etcd-3-5-3
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.5.4/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.5.4/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.5.4-0@sha256:6f72b851544986cb0921b53ea655ec04c36131248f16d4ad110cb3ca0c369dc1
+    name: init-etcd-3-5-4
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.5.6/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.5.6/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.5.6-0@sha256:dd75ec974b0a2a6f6bb47001ba09207976e625db898d1b16735528c009cb171c
+    name: init-etcd-3-5-6
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  - args:
+    - -c
+    - cp /usr/local/bin/etcd /opt/etcd-v3.5.7/etcd && cp /usr/local/bin/etcdctl /opt/etcd-v3.5.7/etcdctl
+    command:
+    - /bin/sh
+    image: registry.k8s.io/etcd:3.5.7-0@sha256:51eae8381dcb1078289fa7b4f3df2630cdc18d09fb56f8e56b41c40e191d6c83
+    name: init-etcd-3-5-7
+    resources: {}
+    volumeMounts:
+    - mountPath: /opt
+      name: bin
+  priorityClassName: system-cluster-critical
+  tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  volumes:
+  - hostPath:
+      path: /
+      type: Directory
+    name: rootfs
+  - hostPath:
+      path: /run
+      type: DirectoryOrCreate
+    name: run
+  - hostPath:
+      path: /etc/kubernetes/pki/etcd-manager-main
+      type: DirectoryOrCreate
+    name: pki
+  - emptyDir: {}
+    name: bin
+  - hostPath:
+      path: /var/log/etcd.log
+      type: FileOrCreate
+    name: varlogetcd
+status: {}

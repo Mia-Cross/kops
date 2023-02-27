@@ -1,0 +1,81 @@
+Assets:
+  amd64:
+  - 8485ac4a60455b77a9b518c13b3aeb0d32338ab7e9894a0b5d217fea585cd2be@https://storage.googleapis.com/kubernetes-release/release/v1.25.6/bin/linux/amd64/kubelet
+  - ba876aef0e9d7e2e8fedac036ec194de5ec9b6d2953e30ff82a2758c6ba32174@https://storage.googleapis.com/kubernetes-release/release/v1.25.6/bin/linux/amd64/kubectl
+  - 962100bbc4baeaaa5748cdbfce941f756b1531c2eadb290129401498bfac21e7@https://storage.googleapis.com/k8s-artifacts-cni/release/v0.9.1/cni-plugins-linux-amd64-v0.9.1.tgz
+  - 2415b431a900275c14942f87f751e1e13d513c1c2f062322b5ca5a9a2190f22a@https://github.com/containerd/containerd/releases/download/v1.6.16/containerd-1.6.16-linux-amd64.tar.gz
+  - db772be63147a4e747b4fe286c7c16a2edc4a8458bd3092ea46aaee77750e8ce@https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.amd64
+  - 5d43eba0bdc96c7b842b35c392e886a8cef56279a820eaeafe7d850e9b4ddb1a@https://artifacts.k8s.io/binaries/kops/1.27.0-alpha.1/linux/amd64/protokube,https://github.com/kubernetes/kops/releases/download/v1.27.0-alpha.1/protokube-linux-amd64
+  - f0458aefe99431c7df1dade9fe60ebad179d6de59febe617775dad9cf1899723@https://artifacts.k8s.io/binaries/kops/1.27.0-alpha.1/linux/amd64/channels,https://github.com/kubernetes/kops/releases/download/v1.27.0-alpha.1/channels-linux-amd64
+  arm64:
+  - 6dade59b6fe4b94f03ee173692f5713e023b0cd1abaa8f5ebe4263b49a63df38@https://storage.googleapis.com/kubernetes-release/release/v1.25.6/bin/linux/arm64/kubelet
+  - 1a4e2850e94d44039c73eae7a6e005b3e1435c00a62bd58df7643bdeb8475cfd@https://storage.googleapis.com/kubernetes-release/release/v1.25.6/bin/linux/arm64/kubectl
+  - ef17764ffd6cdcb16d76401bac1db6acc050c9b088f1be5efa0e094ea3b01df0@https://storage.googleapis.com/k8s-artifacts-cni/release/v0.9.1/cni-plugins-linux-arm64-v0.9.1.tgz
+  - c2bf51fde02ec9cf8b9c18721bc4f53bd1f19fb2bb3251f41ece61af7347e082@https://github.com/containerd/containerd/releases/download/v1.6.16/containerd-1.6.16-linux-arm64.tar.gz
+  - dbb71e737eaef454a406ce21fd021bd8f1b35afb7635016745992bbd7c17a223@https://github.com/opencontainers/runc/releases/download/v1.1.4/runc.arm64
+  - 3d762ab7b67ce1759b15003ef375c546a05619efb8d24fd21f4d26aa3562cfdb@https://artifacts.k8s.io/binaries/kops/1.27.0-alpha.1/linux/arm64/protokube,https://github.com/kubernetes/kops/releases/download/v1.27.0-alpha.1/protokube-linux-arm64
+  - 1dbfb6584fbf3733131a91975744f78a85aeb2695c3c7901c636f71978dfbb05@https://artifacts.k8s.io/binaries/kops/1.27.0-alpha.1/linux/arm64/channels,https://github.com/kubernetes/kops/releases/download/v1.27.0-alpha.1/channels-linux-arm64
+CAs:
+  kubernetes-ca: |
+    -----BEGIN CERTIFICATE-----
+    MIIC+DCCAeCgAwIBAgIMF0AL2GvrJc73NfozMA0GCSqGSIb3DQEBCwUAMBgxFjAU
+    BgNVBAMTDWt1YmVybmV0ZXMtY2EwHhcNMjMwMTMxMTUzNDQ1WhcNMzMwMTMwMTUz
+    NDQ1WjAYMRYwFAYDVQQDEw1rdWJlcm5ldGVzLWNhMIIBIjANBgkqhkiG9w0BAQEF
+    AAOCAQ8AMIIBCgKCAQEAuxh6jTOAvn7VoWcFo+T7cx3Tq+pXcCsbhxhM7mrCAgpE
+    pjepG6IZcAG1JruIcLMA8IrwuznSrqUSQ8eDnFS94pSKZUz51ZPz8HByi5Pk5J29
+    VP14rdBr+zbKNcg9zsaMJLqJfg3OXZeS3Q8Xsoh7gWdb6h1MMmyZMCk37VE8TXfZ
+    5wF0FJ0vbpXluqQZ6ihTrXwTW+EF9Ck8ekrKN2HlPrtQ9xUvXNGFy2V5kEvx+bht
+    YfyIDimAp+NoDPWTMNp9BoOkoApBujII5VUUscj6VC5yrSBcMzoHhhZOnMdbuhhm
+    pa6UEETQaTuhzTbBdUFVypXR32cRSvKsdfRMBDMoxwIDAQABo0IwQDAOBgNVHQ8B
+    Af8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUBxwh3axwAl2TLfxX
+    pGjjE+BfqycwDQYJKoZIhvcNAQELBQADggEBAEzbXx0vMP7rvU3ZdcMwcLDzp2jg
+    SATD8ob+rVMUBvZMMv0rmPVCOYtrBAcPyCXK60suUn3/15ovL04RkJCne2bCux2j
+    BW8Umca0tQePSRS2FRZQ4otlXHF7HWqheVuEcRzdNyYiDDvITiM4//rAzBhL7U9S
+    xHuE+ggTMo39bxkARL1YnFMb/lngLIjrOY4O4Pb/sZlbLvX4iOltZ7yEReKuaRJm
+    AkjiCmhLuCthKiKr1vAVvROmQ6ZexakmQShQqxYPKnqD6aD9SEzmkqoaplLpcj+u
+    kcUkctHt4oIpF0KEWHToq17OymjEiS+sc/2AcZnA2Xe0NLE/G9L80WHwlBY=
+    -----END CERTIFICATE-----
+ClusterName: scw-minimal.k8s.local
+ContainerRuntime: containerd
+Hooks:
+- null
+- null
+KeypairIDs:
+  kube-proxy: "7195582492874198048653208430"
+  kubelet: "7195582473522166925320831943"
+  kubernetes-ca: "7195582416650655087637953075"
+KubeProxy: null
+KubeletConfig:
+  anonymousAuth: false
+  cgroupDriver: systemd
+  cgroupRoot: /
+  cloudProvider: external
+  clusterDNS: 100.64.0.10
+  clusterDomain: cluster.local
+  enableDebuggingHandlers: true
+  evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
+  kubeconfigPath: /var/lib/kubelet/kubeconfig
+  logLevel: 2
+  nodeLabels:
+    node-role.kubernetes.io/node: ""
+  podInfraContainerImage: registry.k8s.io/pause:3.6@sha256:3d380ca8864549e74af4b29c10f9cb0956236dfb01c40ca076fb6c37253234db
+  podManifestPath: /etc/kubernetes/manifests
+  protectKernelDefaults: true
+  registerSchedulable: true
+  shutdownGracePeriod: 30s
+  shutdownGracePeriodCriticalPods: 10s
+KubernetesVersion: 1.25.6
+Networking:
+  cilium: {}
+  nonMasqueradeCIDR: 100.64.0.0/10
+  serviceClusterIPRange: 100.64.0.0/13
+UpdatePolicy: automatic
+channels:
+- memfs://tests/scw-minimal.k8s.local/addons/bootstrap-channel.yaml
+containerdConfig:
+  logLevel: info
+  runc:
+    version: 1.1.4
+  version: 1.6.16
+docker:
+  skipInstall: true
