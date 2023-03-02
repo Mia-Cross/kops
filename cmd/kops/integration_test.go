@@ -401,7 +401,8 @@ func TestMinimalGCEDNSNone(t *testing.T) {
 
 // TestMinimalScaleway runs tests on a minimal Scaleway cluster with gossip DNS
 func TestMinimalScaleway(t *testing.T) {
-	//t.Setenv("SCW_PROFILE", "kops-testing")
+	t.Setenv("SCW_PROFILE", "kops-testing")
+	t.Setenv("KOPS_FEATURE_FLAGS", "Scaleway")
 	newIntegrationTest("scw-minimal.k8s.local", "minimal_scaleway").
 		withAddons(
 			scwCCMAddon,
@@ -1239,6 +1240,7 @@ func TestCASPriorityExpanderCustom(t *testing.T) {
 func (i *integrationTest) runTest(t *testing.T, ctx context.Context, h *testutils.IntegrationTestHarness, expectedDataFilenames []string, tfFileName string, expectedTfFileName string, phase *cloudup.Phase) {
 	var stdout bytes.Buffer
 
+	//t.Setenv("KOPS_FEATURE_FLAGS", "Scaleway")
 	i.srcDir = updateClusterTestBase + i.srcDir
 	inputYAML := "in-" + i.version + ".yaml"
 	testDataTFPath := "kubernetes.tf"
@@ -1761,6 +1763,7 @@ func (i *integrationTest) runTestTerraformScaleway(t *testing.T) {
 	defer h.Close()
 
 	h.MockKopsVersion("1.27.0-alpha.1")
+	//t.Setenv("KOPS_FEATURE_FLAGS", "Scaleway")
 
 	expectedFilenames := i.expectTerraformFilenames
 
