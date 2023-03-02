@@ -401,7 +401,8 @@ func TestMinimalGCEDNSNone(t *testing.T) {
 
 // TestMinimalScaleway runs tests on a minimal Scaleway cluster with gossip DNS
 func TestMinimalScaleway(t *testing.T) {
-	t.Setenv("SCW_PROFILE", "kops-testing")
+	//t.Setenv("SCW_PROFILE", "kops-testing")
+	//t.Setenv("SCW_CONFIG_PATH", "")
 	t.Setenv("KOPS_FEATURE_FLAGS", "Scaleway")
 	newIntegrationTest("scw-minimal.k8s.local", "minimal_scaleway").
 		withAddons(
@@ -1254,7 +1255,9 @@ func (i *integrationTest) runTest(t *testing.T, ctx context.Context, h *testutil
 		actualTFPath = expectedTfFileName
 	}
 
+	t.Log("ON SET UP LE CLUSTER: ")
 	factory := i.setupCluster(t, ctx, inputYAML, stdout)
+	t.Log("OK !")
 
 	{
 		options := &UpdateClusterOptions{}
@@ -1271,10 +1274,12 @@ func (i *integrationTest) runTest(t *testing.T, ctx context.Context, h *testutil
 		options.ClusterName = i.clusterName
 		options.LifecycleOverrides = i.lifecycleOverrides
 
+		t.Log("ON UPDATE LE CLUSTER: ")
 		_, err := RunUpdateCluster(ctx, factory, &stdout, options)
 		if err != nil {
 			t.Fatalf("error running update cluster %q: %v", i.clusterName, err)
 		}
+		t.Log("OK !")
 	}
 
 	// Compare main files
