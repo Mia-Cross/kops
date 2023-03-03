@@ -20,19 +20,19 @@ spec:
       --volume-tag=kops.k8s.io/cluster=scw-minimal.k8s.local > /tmp/pipe 2>&1
     env:
     - name: S3_ACCESS_KEY_ID
-      value: SCW4N213HFNWST6581KQ
+      value: ***
     - name: S3_ENDPOINT
       value: https://s3.fr-par.scw.cloud
     - name: S3_REGION
       value: fr-par
     - name: S3_SECRET_ACCESS_KEY
-      value: 9557674b-d80c-4c04-aee6-4fed9e96d1f0
+      value: ***
     - name: SCW_ACCESS_KEY
-      value: SCW4N213HFNWST6581KQ
+      value: ***
     - name: SCW_DEFAULT_PROJECT_ID
-      value: fa1e3217-dc80-42ac-85c3-3f034b78b552
+      value: ***
     - name: SCW_SECRET_KEY
-      value: 9557674b-d80c-4c04-aee6-4fed9e96d1f0
+      value: ***
     - name: ETCD_MANAGER_DAILY_BACKUPS_RETENTION
       value: 90d
     image: registry.k8s.io/etcdadm/etcd-manager-slim:v3.0.20230201@sha256:8727adc059334e0e3329dbccce116a734da4a090da5e86c8cddccaf333caa666

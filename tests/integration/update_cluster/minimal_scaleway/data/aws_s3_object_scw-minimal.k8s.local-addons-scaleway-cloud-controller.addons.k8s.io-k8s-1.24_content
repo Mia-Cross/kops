@@ -9,7 +9,7 @@ metadata:
   name: scaleway-secret
   namespace: kube-system
 stringData:
-  SCW_ACCESS_KEY: SCW4N213HFNWST6581KQ
+  SCW_ACCESS_KEY: ***
   SCW_DEFAULT_PROJECT_ID: fa1e3217-dc80-42ac-85c3-3f034b78b552
   SCW_DEFAULT_REGION: fr-par
   SCW_DEFAULT_ZONE: fr-par-1
