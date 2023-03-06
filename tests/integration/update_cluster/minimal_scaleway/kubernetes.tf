@@ -173,7 +173,7 @@ resource "aws_s3_object" "scw-minimal-k8s-local-addons-scaleway-csi-driver-addon
 }
 
 resource "scaleway_iam_ssh_key" "kubernetes-scw-minimal-k8s-local-be_9e_c3_eb_cb_0c_c0_50_ea_bd_b4_5a_15_e3_40_2a" {
-  name       = "kubernetes.scw-minimal-k8s.local-be:9e:c3:eb:cb:0c:c0:50:ea:bd:b4:5a:15:e3:40:2a"
+  name       = "kubernetes.scw-minimal.k8s.local-be:9e:c3:eb:cb:0c:c0:50:ea:bd:b4:5a:15:e3:40:2a"
   public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDKqbVEozfAqng0gx8HTUu69EppcE5SWet6MpwrGShqMVUC4wkoiuVtJDPhMmWmdt7B7Ttc5pvnAZAZaQ6TKMguyBoAyS7qOTLU9/hM803XtSiwQUftOXiJfmsqAXEc8yDyb7UnrF8X7aA3gQJsnQBGJGdp+C88dPHNZenw4PnQc8BNYTCXG9d8F5vJ3xQ5qbiG4HVNoQ2CZh2ht+GedZJ3hl9lMJ24kE/cbMCLKxabMP4ROetECG6PU251jnm84NA8rm0Av/JMmn/c9CFAe0D0D1dGDlHWPsk4mbhGKJ0yU0YliatmPfmgSasismbYzIFf7VPq91ARzRUbavd1fYMBmkMsce0YR/5FdtrpzRhqDzuvwQgQRsoTcttdvp0puFcrtNefMfk8NCbBedIlkzOFxfGiBbe6jde4wqsqEnSrNHwZ2b+Er8z7vjcDPBqYk3gubmMBCrYxg6o1lOS6tTN0kJDUlyKO2AN1ZDr3mpkbhkvZV/N7gLglcClM0X5X7iM= leila@leila-ThinkPad-T14s-Gen-2i"
 }
 
@@ -186,7 +186,7 @@ resource "scaleway_instance_ip" "nodes-fr-par-1-scw-minimal-k8s-local" {
 resource "scaleway_instance_server" "control-plane-fr-par-1-masters-scw-minimal-k8s-local" {
   image = "ubuntu_focal"
   ip_id = scaleway_instance_ip.control-plane-fr-par-1-masters-scw-minimal-k8s-local.id
-  name  = "ontrol-plane-fr-par-1.masters.scw-minimal.k8s.local"
+  name  = "control-plane-fr-par-1.masters.scw-minimal.k8s.local"
   tags  = ["kops.k8s.io/instance-group=control-plane-fr-par-1", "kops.k8s.io/cluster=scw-minimal.k8s.local", "kops.k8s.io/role=ControlPlane"]
   type  = "DEV1-M"
   user_data = {

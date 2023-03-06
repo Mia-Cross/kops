@@ -58,7 +58,7 @@ KubeletConfig:
   logLevel: 2
   nodeLabels:
     node-role.kubernetes.io/node: ""
-  podInfraContainerImage: registry.k8s.io/pause:3.6@sha256:3d380ca8864549e74af4b29c10f9cb0956236dfb01c40ca076fb6c37253234db
+  podInfraContainerImage: registry.k8s.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
   registerSchedulable: true

@@ -75,7 +75,7 @@ spec:
           value: ***
         - name: SCW_SECRET_KEY
           value: ***
-        image: registry.k8s.io/kops/kops-controller:1.27.0-alpha.1@sha256:07927bd0f19e1e29fefa44292c891789a90cd352701d85ca0e80115165b79b4c
+        image: registry.k8s.io/kops/kops-controller:1.27.0-alpha.1
         name: kops-controller
         resources:
           requests:

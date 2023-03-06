@@ -22,7 +22,7 @@ APIServerConfig:
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
-    image: registry.k8s.io/kube-apiserver:v1.25.6@sha256:efa9ae4b9922b3a2c0d296d59651c7cfd528816a641e8c3e7417de72d5f383b4
+    image: registry.k8s.io/kube-apiserver:v1.25.6
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -246,7 +246,7 @@ KubeletConfig:
     kops.k8s.io/kops-controller-pki: ""
     node-role.kubernetes.io/control-plane: ""
     node.kubernetes.io/exclude-from-external-load-balancers: ""
-  podInfraContainerImage: registry.k8s.io/pause:3.6@sha256:3d380ca8864549e74af4b29c10f9cb0956236dfb01c40ca076fb6c37253234db
+  podInfraContainerImage: registry.k8s.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
   registerSchedulable: true

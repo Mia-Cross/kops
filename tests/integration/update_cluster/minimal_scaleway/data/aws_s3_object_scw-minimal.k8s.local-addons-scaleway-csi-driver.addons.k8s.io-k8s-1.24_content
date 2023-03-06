@@ -79,7 +79,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: scaleway/scaleway-csi:v0.2.0@sha256:b610cd91c12f2f3824b5806435b4278a76fe377bab7d678b48f6dc5e70ba799f
+        image: scaleway/scaleway-csi:v0.2.
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1259,7 +1259,7 @@ spec:
         envFrom:
         - secretRef:
             name: scaleway-secret
-        image: scaleway/scaleway-csi:v0.2.0@sha256:b610cd91c12f2f3824b5806435b4278a76fe377bab7d678b48f6dc5e70ba799f
+        image: scaleway/scaleway-csi:v0.2.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1285,7 +1285,7 @@ spec:
         env:
         - name: CSI_ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: k8s.gcr.io/sig-storage/csi-provisioner:v3.0.0@sha256:6477988532358148d2e98f7c747db4e9250bbc7ad2664bf666348abf9ee1f5aa
+        image: k8s.gcr.io/sig-storage/csi-provisioner:v3.0.0
         name: csi-provisioner
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -1297,7 +1297,7 @@ spec:
         env:
         - name: CSI_ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: k8s.gcr.io/sig-storage/csi-attacher:v3.4.0@sha256:8b9c313c05f54fb04f8d430896f5f5904b6cb157df261501b29adc04d2b2dc7b
+        image: k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
         name: csi-attacher
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -1309,7 +1309,7 @@ spec:
         env:
         - name: CSI_ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.1@sha256:818f35653f2e214db81d655063e81995de9073328a3430498624c140881026a3
+        image: k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.1
         name: csi-snapshotter
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -1317,7 +1317,7 @@ spec:
       - args:
         - --v=5
         - --leader-election
-        image: k8s.gcr.io/sig-storage/snapshot-controller:v4.1.1@sha256:4adf85fc27e72a054494dfcd1d43d5ef9518fe302cf8b3246c03b90cfa9f92a9
+        image: k8s.gcr.io/sig-storage/snapshot-controller:v4.1.1
         name: snapshot-controller
       - args:
         - --v=5
@@ -1326,7 +1326,7 @@ spec:
         env:
         - name: CSI_ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/mock.socket
-        image: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0@sha256:6e0546563b18872b0aa0cad7255a26bb9a87cb879b7fc3e2383c867ef4f706fb
+        image: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
         name: csi-resizer
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -1336,7 +1336,7 @@ spec:
         env:
         - name: CSI_ADDRESS
           value: /csi/csi.sock
-        image: k8s.gcr.io/sig-storage/livenessprobe:v2.6.0@sha256:406f59599991916d2942d8d02f076d957ed71b541ee19f09fc01723a6e6f5932
+        image: k8s.gcr.io/sig-storage/livenessprobe:v2.6.0
         name: liveness-probe
         volumeMounts:
         - mountPath: /csi

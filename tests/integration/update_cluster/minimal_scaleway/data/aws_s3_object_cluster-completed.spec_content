@@ -82,7 +82,7 @@ spec:
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
-    image: registry.k8s.io/kube-apiserver:v1.25.6@sha256:efa9ae4b9922b3a2c0d296d59651c7cfd528816a641e8c3e7417de72d5f383b4
+    image: registry.k8s.io/kube-apiserver:v1.25.6
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -108,7 +108,7 @@ spec:
     clusterCIDR: 100.96.0.0/11
     clusterName: scw-minimal.k8s.local
     configureCloudRoutes: false
-    image: registry.k8s.io/kube-controller-manager:v1.25.6@sha256:080f668ca39f876cefbb4d62d94ad6ea1475a33ba7784bfcfd65da58e33c9ffc
+    image: registry.k8s.io/kube-controller-manager:v1.25.6
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -131,10 +131,10 @@ spec:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
     enabled: false
-    image: registry.k8s.io/kube-proxy:v1.25.6@sha256:7461d0b2b2c9fe5b50c15acf9739cd6624e1ec1b07ae3877780035e0f436ad63
+    image: registry.k8s.io/kube-proxy:v1.25.6
     logLevel: 2
   kubeScheduler:
-    image: registry.k8s.io/kube-scheduler:v1.25.6@sha256:f41301881252779d21dde86aac5a45e9acfe560643b5a28cef1286eabb187e26
+    image: registry.k8s.io/kube-scheduler:v1.25.6
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -149,7 +149,7 @@ spec:
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
-    podInfraContainerImage: registry.k8s.io/pause:3.6@sha256:3d380ca8864549e74af4b29c10f9cb0956236dfb01c40ca076fb6c37253234db
+    podInfraContainerImage: registry.k8s.io/pause:3.6
     podManifestPath: /etc/kubernetes/manifests
     protectKernelDefaults: true
     registerSchedulable: true
@@ -170,7 +170,7 @@ spec:
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
-    podInfraContainerImage: registry.k8s.io/pause:3.6@sha256:3d380ca8864549e74af4b29c10f9cb0956236dfb01c40ca076fb6c37253234db
+    podInfraContainerImage: registry.k8s.io/pause:3.6
     podManifestPath: /etc/kubernetes/manifests
     protectKernelDefaults: true
     registerSchedulable: true
