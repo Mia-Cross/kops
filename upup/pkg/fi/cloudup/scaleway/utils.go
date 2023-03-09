@@ -25,28 +25,10 @@ import (
 
 	"github.com/scaleway/scaleway-sdk-go/scw"
 	k8serrors "k8s.io/apimachinery/pkg/util/errors"
+	kopsv "k8s.io/kops"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 )
-
-// isHTTPCodeError returns true if err is an http error with code statusCode
-func isHTTPCodeError(err error, statusCode int) bool {
-	if err == nil {
-		return false
-	}
-
-	responseError := &scw.ResponseError{}
-	if errors.As(err, &responseError) && responseError.StatusCode == statusCode {
-		return true
-	}
-	return false
-}
-
-// is404Error returns true if err is an HTTP 404 error
-func is404Error(err error) bool {
-	notFoundError := &scw.ResourceNotFoundError{}
-	return isHTTPCodeError(err, http.StatusNotFound) || errors.As(err, &notFoundError)
-}
 
 func ParseZoneFromClusterSpec(clusterSpec kops.ClusterSpec) (scw.Zone, error) {
 	zone := ""
@@ -127,4 +109,77 @@ func CreateValidScalewayProfile() (*scw.Profile, error) {
 		return nil, fmt.Errorf(errMsg)
 	}
 	return profile, nil
+}
+
+func CreateScalewayClient(clientOptions ...scw.ClientOption) (*scw.Client, error) {
+	profile, err := CreateValidScalewayProfile()
+	if err != nil {
+		return nil, err
+	}
+	clientOptions = append(clientOptions, scw.WithProfile(profile))
+	clientOptions = append(clientOptions, scw.WithUserAgent(KopsUserAgentPrefix+kopsv.Version))
+
+	scwClient, err := scw.NewClient(clientOptions...)
+	if err != nil {
+		return nil, err
+	}
+	return scwClient, nil
+}
+
+// isHTTPCodeError returns true if err is an http error with code statusCode
+func isHTTPCodeError(err error, statusCode int) bool {
+	if err == nil {
+		return false
+	}
+
+	responseError := &scw.ResponseError{}
+	if errors.As(err, &responseError) && responseError.StatusCode == statusCode {
+		return true
+	}
+	return false
+}
+
+// is404Error returns true if err is an HTTP 404 error
+func is404Error(err error) bool {
+	notFoundError := &scw.ResourceNotFoundError{}
+	return isHTTPCodeError(err, http.StatusNotFound) || errors.As(err, &notFoundError)
+}
+
+func displayEnv() {
+	fmt.Printf("******************* Scaleway credentials *******************\n\n")
+
+	fmt.Printf(fmt.Sprintf("SCW_ACCESS_KEY = %s\n", os.Getenv("SCW_ACCESS_KEY")))
+	fmt.Printf(fmt.Sprintf("SCW_SECRET_KEY = %s\n", os.Getenv("SCW_SECRET_KEY")))
+	fmt.Printf(fmt.Sprintf("SCW_DEFAULT_PROJECT_ID = %s\n", os.Getenv("SCW_DEFAULT_PROJECT_ID")))
+
+	fmt.Printf("\n********************* S3 credentials *********************\n\n")
+
+	fmt.Printf(fmt.Sprintf("S3_REGION = %s\n", os.Getenv("S3_REGION")))
+	fmt.Printf(fmt.Sprintf("S3_ENDPOINT = %s\n", os.Getenv("S3_ENDPOINT")))
+	fmt.Printf(fmt.Sprintf("S3_ACCESS_KEY_ID = %s\n", os.Getenv("S3_ACCESS_KEY_ID")))
+	fmt.Printf(fmt.Sprintf("S3_SECRET_ACCESS_KEY = %s\n", os.Getenv("S3_SECRET_ACCESS_KEY")))
+
+	fmt.Printf("\n\t*********** State-store bucket *************\n\n")
+
+	fmt.Printf(fmt.Sprintf("KOPS_STATE_STORE = %s\n", os.Getenv("KOPS_STATE_STORE")))
+	fmt.Printf(fmt.Sprintf("S3_BUCKET_NAME = %s\n", os.Getenv("S3_BUCKET_NAME")))
+
+	fmt.Printf("\n\t*********** State-store bucket *************\n\n")
+
+	fmt.Printf(fmt.Sprintf("NODEUP_BUCKET = %s\n", os.Getenv("NODEUP_BUCKET")))
+	fmt.Printf(fmt.Sprintf("UPLOAD_DEST = %s\n", os.Getenv("UPLOAD_DEST")))
+	fmt.Printf(fmt.Sprintf("KOPS_BASE_URL = %s\n", os.Getenv("KOPS_BASE_URL")))
+	fmt.Printf(fmt.Sprintf("KOPSCONTROLLER_IMAGE = %s\n", os.Getenv("KOPSCONTROLLER_IMAGE")))
+	fmt.Printf(fmt.Sprintf("DNSCONTROLLER_IMAGE = %s\n", os.Getenv("DNSCONTROLLER_IMAGE")))
+
+	fmt.Printf("\n********************* Registry access *********************\n\n")
+
+	fmt.Printf(fmt.Sprintf("DOCKER_REGISTRY = %s\n", os.Getenv("DOCKER_REGISTRY")))
+	fmt.Printf(fmt.Sprintf("DOCKER_IMAGE_PREFIX = %s\n", os.Getenv("DOCKER_IMAGE_PREFIX")))
+
+	fmt.Printf("\n********************* Other *********************\n\n")
+
+	fmt.Printf(fmt.Sprintf("KOPS_FEATURE_FLAGS = %s\n", os.Getenv("KOPS_FEATURE_FLAGS")))
+	fmt.Printf(fmt.Sprintf("KOPS_ARCH = %s\n", os.Getenv("KOPS_ARCH")))
+	fmt.Printf(fmt.Sprintf("KOPS_VERSION = %s\n\n", os.Getenv("KOPS_VERSION")))
 }

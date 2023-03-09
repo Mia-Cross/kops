@@ -57,11 +57,13 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.CloudupModelBuilderContext) er
 	if err != nil {
 		return fmt.Errorf("building load-balancer task: %w", err)
 	}
-	lbTags := []string(nil)
+	lbTags := []string{
+		fmt.Sprintf("%s=%s", scaleway.TagClusterName, b.ClusterName()),
+		fmt.Sprintf("%s=%s", scaleway.TagNameRolePrefix, scaleway.TagRoleControlPlane),
+	}
 	for k, v := range b.CloudTags(b.ClusterName(), false) {
 		lbTags = append(lbTags, fmt.Sprintf("%s=%s", k, v))
 	}
-	lbTags = append(lbTags, fmt.Sprintf("%s=%s", scaleway.TagNameRolePrefix, scaleway.TagRoleControlPlane))
 
 	loadBalancerName := "api." + b.ClusterName()
 	loadBalancer := &scalewaytasks.LoadBalancer{
@@ -99,6 +101,13 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.CloudupModelBuilderContext) er
 	}
 
 	c.AddTask(lbFrontend)
+
+	//if b.Cluster.Spec.NetworkID != "" {
+	//	loadBalancer.VPCId = fi.PtrTo(b.Cluster.Spec.NetworkID)
+	//} else if b.Cluster.Spec.NetworkCIDR != "" {
+	//	loadBalancer.VPCName = fi.PtrTo(b.ClusterName())
+	//	loadBalancer.NetworkCIDR = fi.PtrTo(b.Cluster.Spec.NetworkCIDR)
+	//}
 
 	if dns.IsGossipClusterName(b.Cluster.Name) || b.Cluster.UsesPrivateDNS() || b.Cluster.UsesNoneDNS() {
 		// Ensure the LB hostname is included in the TLS certificate,

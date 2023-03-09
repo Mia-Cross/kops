@@ -19,12 +19,15 @@ package scalewaytasks
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/scaleway/scaleway-sdk-go/api/instance/v1"
 	"github.com/scaleway/scaleway-sdk-go/api/lb/v1"
 	"github.com/scaleway/scaleway-sdk-go/scw"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/scaleway"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraformWriter"
 )
 
 // +kops:fitask
@@ -41,6 +44,8 @@ type Instance struct {
 
 	UserData     *fi.Resource
 	LoadBalancer *LoadBalancer
+	//Network        *Network
+	NeedsUpdate []string
 }
 
 var _ fi.CloudupTask = &Instance{}
@@ -60,9 +65,34 @@ func (s *Instance) Find(c *fi.CloudupContext) (*Instance, error) {
 	if len(servers) == 0 {
 		return nil, nil
 	}
+
+	// Check if servers have been added to the instance group, therefore an update is needed
+	if len(servers) > s.Count {
+		for _, server := range servers {
+			alreadyTagged := false
+			for _, tag := range server.Tags {
+				if tag == scaleway.TagNeedsUpdate {
+					alreadyTagged = true
+				}
+			}
+			if alreadyTagged == true {
+				continue
+			}
+			s.NeedsUpdate = append(s.NeedsUpdate, server.ID)
+		}
+	}
+	//TODO(Mia-Cross): handle other changes like image, commercial type, userdata
+
 	server := servers[0]
 
-	role := scaleway.TagRoleWorker
+	igName := ""
+	for _, tag := range server.Tags {
+		if strings.HasPrefix(tag, scaleway.TagInstanceGroup) {
+			igName = strings.TrimPrefix(tag, scaleway.TagInstanceGroup+"=")
+		}
+	}
+
+	role := scaleway.TagRoleNode
 	for _, tag := range server.Tags {
 		if tag == scaleway.TagNameRolePrefix+"="+scaleway.TagRoleControlPlane {
 			role = scaleway.TagRoleControlPlane
@@ -70,7 +100,7 @@ func (s *Instance) Find(c *fi.CloudupContext) (*Instance, error) {
 	}
 
 	return &Instance{
-		Name:           fi.PtrTo(server.Name),
+		Name:           fi.PtrTo(igName),
 		Count:          len(servers),
 		Zone:           fi.PtrTo(server.Zone.String()),
 		Role:           fi.PtrTo(role),
@@ -79,6 +109,7 @@ func (s *Instance) Find(c *fi.CloudupContext) (*Instance, error) {
 		Tags:           server.Tags,
 		UserData:       s.UserData,
 		Lifecycle:      s.Lifecycle,
+		//Network:        s.Network,
 	}, nil
 }
 
@@ -117,8 +148,8 @@ func (_ *Instance) CheckChanges(actual, expected, changes *Instance) error {
 	return nil
 }
 
-func (_ *Instance) RenderScw(c *fi.CloudupContext, actual, expected, changes *Instance) error {
-	cloud := c.T.Cloud.(scaleway.ScwCloud)
+func (_ *Instance) RenderScw(t *scaleway.ScwAPITarget, actual, expected, changes *Instance) error {
+	cloud := t.Cloud.(scaleway.ScwCloud)
 	instanceService := cloud.InstanceService()
 	zone := scw.Zone(fi.ValueOf(expected.Zone))
 	controlPlanePrivateIPs := []string(nil)
@@ -134,15 +165,51 @@ func (_ *Instance) RenderScw(c *fi.CloudupContext, actual, expected, changes *In
 			return nil
 		}
 		newInstanceCount = expected.Count - actual.Count
+
+		// Add "kops.k8s.io/needs-update" label to servers needing update
+		for _, serverID := range actual.NeedsUpdate {
+			server, err := instanceService.GetServer(&instance.GetServerRequest{
+				Zone:     zone,
+				ServerID: serverID,
+			})
+			if err != nil {
+				return fmt.Errorf("error rendering server group: error listing existing servers: %w", err)
+			}
+			_, err = instanceService.UpdateServer(&instance.UpdateServerRequest{
+				Zone:     zone,
+				ServerID: serverID,
+				Tags:     scw.StringsPtr(append(server.Server.Tags, scaleway.TagNeedsUpdate)),
+			})
+			if err != nil {
+				return fmt.Errorf("error rendering server group: error adding update tag to server %q (%s): %w", server.Server.Name, serverID, err)
+			}
+		}
 	}
+
+	// We get the private network to associate it with new instances
+	//pn, err := cloud.GetClusterVPCs(c.Cluster.Name)
+	//if err != nil {
+	//	return fmt.Errorf("error listing private networks: %v", err)
+	//}
+	//if len(pn) != 1 {
+	//	return fmt.Errorf("more than 1 private network named %s found", c.Cluster.Name)
+	//}
 
 	// If newInstanceCount > 0, we need to create new instances for this group
 	for i := 0; i < newInstanceCount; i++ {
 
+		// We create a unique name for each server
+		actualCount := 0
+		if actual != nil {
+			actualCount = actual.Count
+		}
+		// TODO(Mia-Cross): check that this works even when instances were deleted before adding some again
+		uniqueName := fmt.Sprintf("%s-%d", fi.ValueOf(expected.Name), i+actualCount)
+
 		// We create the instance
 		srv, err := instanceService.CreateServer(&instance.CreateServerRequest{
 			Zone:           zone,
-			Name:           fi.ValueOf(expected.Name),
+			Name:           uniqueName,
 			CommercialType: fi.ValueOf(expected.CommercialType),
 			Image:          fi.ValueOf(expected.Image),
 			Tags:           expected.Tags,
@@ -203,6 +270,26 @@ func (_ *Instance) RenderScw(c *fi.CloudupContext, actual, expected, changes *In
 			}
 			controlPlanePrivateIPs = append(controlPlanePrivateIPs, *server.Server.PrivateIP)
 		}
+
+		// We put the instance inside the private network
+		//pNIC, err := instanceService.CreatePrivateNIC(&instance.CreatePrivateNICRequest{
+		//	Zone:             zone,
+		//	ServerID:         srv.Server.ID,
+		//	PrivateNetworkID: pn[0].ID,
+		//})
+		//if err != nil {
+		//	return fmt.Errorf("error linking instance to private network: %v", err)
+		//}
+		//
+		//// We wait for the private nic to be ready before proceeding
+		//_, err = instanceService.WaitForPrivateNIC(&instance.WaitForPrivateNICRequest{
+		//	ServerID:     srv.Server.ID,
+		//	PrivateNicID: pNIC.PrivateNic.ID,
+		//	Zone:         zone,
+		//})
+		//if err != nil {
+		//	return fmt.Errorf("error waiting for private nic: %v", err)
+		//}
 	}
 
 	// If newInstanceCount < 0, we need to delete instances of this group
@@ -285,5 +372,104 @@ func (_ *Instance) RenderScw(c *fi.CloudupContext, actual, expected, changes *In
 		}
 	}
 
+	// We create NAT rules linking the gateway to our instances in order to be able to connect via SSH
+	// TODO(Mia-Cross): This part is for dev purposes only, remove when done
+	//gwService := cloud.GatewayService()
+	//rules := []*vpcgw.SetPATRulesRequestRule(nil)
+	//port := uint32(2022)
+	//gwNetwork, err := cloud.GetClusterGatewayNetworks(pn[0].ID)
+	//if err != nil {
+	//	return err
+	//}
+	//if len(gwNetwork) < 1 {
+	//	klog.V(4).Infof("Could not find any gateway connexion, skipping NAT rules creation")
+	//} else {
+	//	entries, err := gwService.ListDHCPEntries(&vpcgw.ListDHCPEntriesRequest{
+	//		Zone:             zone,
+	//		GatewayNetworkID: scw.StringPtr(gwNetwork[0].ID),
+	//	}, scw.WithAllPages())
+	//	if err != nil {
+	//		return fmt.Errorf("error listing DHCP entries")
+	//	}
+	//	klog.V(4).Infof("=== DHCP entries are %v", entries.DHCPEntries)
+	//	for _, entry := range entries.DHCPEntries {
+	//		rules = append(rules, &vpcgw.SetPATRulesRequestRule{
+	//			PublicPort:  port,
+	//			PrivateIP:   entry.IPAddress,
+	//			PrivatePort: 22,
+	//			Protocol:    "both",
+	//		})
+	//		port += 1
+	//	}
+	//
+	//	_, err = gwService.SetPATRules(&vpcgw.SetPATRulesRequest{
+	//		Zone:      zone,
+	//		GatewayID: gwNetwork[0].GatewayID,
+	//		PatRules:  rules,
+	//	})
+	//	if err != nil {
+	//		return fmt.Errorf("error setting PAT rules for gateway")
+	//	}
+	//	klog.V(4).Infof("=== rules set")
+	//}
+
 	return nil
+}
+
+type terraformInstanceIP struct{}
+
+type terraformUserData struct {
+	CloudInit *terraformWriter.Literal `cty:"cloud-init"`
+}
+
+type terraformInstance struct {
+	Name     *string                             `cty:"name"`
+	IPID     *terraformWriter.Literal            `cty:"ip_id"`
+	Type     *string                             `cty:"type"`
+	Tags     []string                            `cty:"tags"`
+	Image    *string                             `cty:"image"`
+	UserData map[string]*terraformWriter.Literal `cty:"user_data"`
+}
+
+func (_ *Instance) RenderTerraform(t *terraform.TerraformTarget, actual, expected, changes *Instance) error {
+	tfName := strings.Replace(fi.ValueOf(expected.Name), ".", "-", -1)
+	{
+		tf := terraformInstanceIP{}
+		err := t.RenderResource("scaleway_instance_ip", tfName, tf)
+		if err != nil {
+			return err
+		}
+	}
+	{
+		tf := terraformInstance{
+			Name:  expected.Name,
+			IPID:  expected.TerraformLinkIPID(tfName),
+			Type:  expected.CommercialType,
+			Tags:  expected.Tags,
+			Image: expected.Image,
+			//UserData: expected.UserData,
+		}
+		if expected.UserData != nil {
+			userDataBytes, err := fi.ResourceAsBytes(fi.ValueOf(expected.UserData))
+			if err != nil {
+				return err
+			}
+			if userDataBytes != nil {
+				tfUserData, err := t.AddFileBytes("scaleway_instance_server", tfName, "user_data", userDataBytes, true)
+				if err != nil {
+					return err
+				}
+				tf.UserData = map[string]*terraformWriter.Literal{
+					"cloud-init": tfUserData,
+				}
+				//tf.UserData, err =
+			}
+		}
+
+		return t.RenderResource("scaleway_instance_server", tfName, tf)
+	}
+}
+
+func (i *Instance) TerraformLinkIPID(tfName string) *terraformWriter.Literal {
+	return terraformWriter.LiteralProperty("scaleway_instance_ip", tfName, "id")
 }
